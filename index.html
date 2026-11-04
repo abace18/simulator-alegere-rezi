@@ -202,32 +202,32 @@ const DIMS = [
 ];
 
 const ORGANS = [
-  ["inima","Inima"],["vase","Vasele de sânge"],["creier","Creierul și nervii"],["plamani","Plămânii"],
-  ["digestiv","Tubul digestiv și ficatul"],["rinichi","Rinichii și căile urinare"],["hormoni","Hormonii și metabolismul"],
-  ["sange","Sângele"],["imun","Infecțiile și imunitatea"],["piele","Pielea"],["ochi","Ochiul"],["orl","Urechea, nasul, gâtul"],
-  ["oase","Oasele, articulațiile, mușchii"],["reproducere","Aparatul reproducător"],["psihic","Mintea și comportamentul"],
-  ["cancer","Cancerul"],["tot","Organismul ca întreg"],
+  ["inima","Patologie cardiacă"],["vase","Patologie vasculară"],["creier","Neuroștiințe: SNC, SNP, neuromuscular"],["plamani","Patologie respiratorie"],
+  ["digestiv","Patologie digestivă și hepatobiliară"],["rinichi","Patologie renală și urologică"],["hormoni","Endocrinologie și metabolism"],
+  ["sange","Hematologie, hemostază"],["imun","Infecțiozitate, imunologie, autoimunitate"],["piele","Patologie cutanată și anexe"],["ochi","Patologie oculară"],["orl","Cap și gât, ORL"],
+  ["oase","Aparat locomotor"],["reproducere","Patologie genitală și a reproducerii"],["psihic","Psihopatologie"],
+  ["cancer","Oncologie solidă și hematologică"],["tot","Patologie multisistemică"],
 ];
 
 const ACTS = [
-  ["eco","Ecografie"],["endo","Endoscopie (gastro, bronho, uro)"],["interv","Cateterism și proceduri intervenționale"],
-  ["minv","Chirurgie laparoscopică sau robotică"],["microchir","Microchirurgie"],["ventilatie","Ventilație și suport vital"],
-  ["nasteri","Nașteri"],["estetic","Medicină estetică"],["sport","Sportivi și performanță fizică"],["reabilitare","Recuperare și reabilitare"],
-  ["nutritie","Nutriție"],["genetica","Genetică"],["microscop","Microscop și lame"],["autopsii","Autopsii și expertize judiciare"],
-  ["psihoterapie","Psihoterapie"],["epidemii","Epidemii și vaccinare"],["management","Management sanitar"],["cercetare","Cercetare clinică"],
+  ["eco","Ecografie, inclusiv point-of-care"],["endo","Endoscopie: digestivă, bronhoscopie, cistoscopie"],["interv","Cateterism, angioplastie, radiologie intervențională"],
+  ["minv","Chirurgie laparoscopică sau robotică"],["microchir","Microchirurgie și chirurgie sub microscop"],["ventilatie","Ventilație mecanică și monitorizare hemodinamică"],
+  ["nasteri","Asistența la naștere"],["estetic","Proceduri estetice: toxină, filleri, laser"],["sport","Evaluare la efort și leziuni sportive"],["reabilitare","Recuperare neuromotorie și posttraumatică"],
+  ["nutritie","Nutriție clinică"],["genetica","Genetică și genomică clinică"],["microscop","Histopatologie, citologie, microscopie"],["autopsii","Tanatologie și expertize medico-legale"],
+  ["psihoterapie","Psihoterapie"],["epidemii","Supraveghere epidemiologică și vaccinologie"],["management","Management sanitar și politici de sănătate"],["cercetare","Studii clinice și cercetare translațională"],
 ];
 
 const DEALS = [
-  ["Să operez", s => s.v.chir >= 3, "implică operații"],
-  ["Gărzi multe și nopți nedormite", s => s.v.stil <= 1, "are multe gărzi"],
-  ["Să lucrez cu copii", s => s.v.copii >= 3, "lucrezi mult cu copii"],
-  ["Să lucrez aproape fără pacienți", s => s.v.contact <= 1, "are puțin contact cu pacienții"],
-  ["Decese frecvente și pacienți terminali", s => s.v.grav >= 4, "are decese frecvente"],
-  ["Un rezidențiat de 6 ani", s => s.y >= 6, "durează 6 ani"],
-  ["Autopsii", s => s.a.includes("autopsii"), "implică autopsii"],
-  ["Nașteri și sala de nașteri", s => s.a.includes("nasteri") || s.v.fem >= 4, "implică nașteri"],
-  ["Pacienți psihiatrici", s => s.o.includes("psihic"), "lucrezi cu pacienți psihiatrici"],
-  ["Urgențe zilnice", s => s.v.acut >= 4, "are urgențe zilnice"],
+  ["Activitate chirurgicală în blocul operator", s => s.v.chir >= 3, "implică activitate chirurgicală"],
+  ["Gărzi de 24 de ore frecvente, și ca specialist", s => s.v.stil <= 1, "are gărzi frecvente"],
+  ["Pacientul pediatric", s => s.v.copii >= 3, "lucrezi predominant cu copii"],
+  ["Activitate fără contact clinic direct", s => s.v.contact <= 1, "are contact clinic redus"],
+  ["Mortalitate ridicată și îngrijiri paliative", s => s.v.grav >= 4, "are mortalitate ridicată"],
+  ["O pregătire de 6 ani", s => s.y >= 6, "durează 6 ani"],
+  ["Necropsii", s => s.a.includes("autopsii"), "implică necropsii"],
+  ["Asistența la naștere", s => s.a.includes("nasteri") || s.v.fem >= 4, "implică asistența la naștere"],
+  ["Pacientul psihiatric acut, internări nevoluntare", s => s.o.includes("psihic"), "lucrezi cu pacienți psihiatrici"],
+  ["Activitate predominant de urgență", s => s.v.acut >= 4, "e predominant de urgență"],
 ];
 
 // v: chir proc acut cont diag contact stil copii tech priv psih lab grav larg fem vizual varst pop
@@ -397,54 +397,54 @@ const SPECS = RAW.map(([n, y, v, o, a, d, day], i) => {
 const MEAN = {}; DIMS.forEach(([k]) => MEAN[k] = SPECS.reduce((t, s) => t + s.v[k], 0) / SPECS.length);
 
 const SECTIONS = [
-  ["Cum îți place să lucrezi", [
-    ["Mă văd operând câteva ore pe zi, în sala de operație.", {chir:1}],
-    ["Îmi place să fac lucruri cu mâinile: manevre, puncții, gesturi tehnice fine.", {proc:1, chir:.4}],
-    ["Vreau să văd rezultatul imediat după ce intervin.", {chir:.6, proc:.6, cont:-.4}],
-    ["Sângele, fluidele și mirosurile de spital nu mă deranjează deloc.", {chir:.6, proc:.5, acut:.3}],
-    ["Pot sta în picioare ore în șir fără să mă deranjeze.", {chir:.7, proc:.4, acut:.3}],
-    ["Mă atrage tehnologia medicală: aparate, imagistică, software.", {tech:1}],
-    ["Am ochi bun pentru detalii vizuale și recunosc repede tipare.", {vizual:1}],
-    ["Mi-ar plăcea să lucrez la microscop sau în laborator.", {lab:1, contact:-.4}],
+  ["Activitate procedurală și chirurgicală", [
+    ["Mă văd lucrând zilnic în blocul operator, inclusiv în intervenții de 4–6 ore.", {chir:1}],
+    ["Manevrele invazive (cateter venos central, puncție lombară, toracocenteză) îmi dau satisfacție, nu doar le tolerez.", {proc:1, chir:.3}],
+    ["Prefer ca propria mea intervenție să rezolve problema, în loc să controlez boala prin tratament cronic.", {chir:.6, proc:.6, cont:-.5}],
+    ["Am răbdare pentru gesturi fine sub magnificație: microscop operator, lupe, endoscop.", {proc:.7, chir:.4, vizual:.3}],
+    ["Accept efortul fizic al chirurgiei: ore în picioare, șorț plumbat, intervenții una după alta.", {chir:.7, proc:.4, acut:.2}],
+    ["Mă atrage partea tehnică: ecografie, setările ventilatorului, protocoale CT/RMN, dispozitive implantabile.", {tech:1}],
+    ["Identific rapid un pattern pe imagine: o leziune la dermatoscop, un frotiu, un semn radiologic.", {vizual:1}],
+    ["M-aș simți împlinit corelând morfologia (lame, culturi, parametri de laborator) cu clinica, fără să examinez eu pacientul.", {lab:1, contact:-.5}],
   ]],
-  ["Ritm și intensitate", [
-    ["Mă energizează urgențele, când trebuie să decid în câteva secunde.", {acut:1}],
-    ["Prefer deciziile luate pe îndelete, fără dramatism.", {acut:-1}],
-    ["Pot gestiona emoțional pacienți critici și decese frecvente.", {grav:1}],
-    ["Lucrul cu pacienți oncologici sau terminali nu mă sperie.", {grav:.8, psih:.3}],
-    ["Accept multe gărzi și program imprevizibil dacă munca mă pasionează.", {stil:-1}],
-    ["Serile și weekendurile libere sunt o prioritate clară pentru mine.", {stil:1}],
+  ["Acuitate și presiune", [
+    ["Mă simt confortabil să conduc o resuscitare sau să stabilizez un pacient instabil hemodinamic.", {acut:1, grav:.3}],
+    ["Prefer un ritm în care am timp să consult ghidul și să discut cazul înainte de a decide.", {acut:-1}],
+    ["Pot lucra zilnic cu pacienți cu prognostic rezervat și pot anunța decese familiilor fără să mă epuizez.", {grav:1}],
+    ["Mă văd purtând discuții despre limitarea terapiei, îngrijiri paliative și decizii de nonresuscitare.", {grav:.7, psih:.4}],
+    ["Accept 5–7 gărzi pe lună și după rezidențiat, dacă specialitatea mă pasionează.", {stil:-1}],
+    ["Un program de tip 8–15, fără gărzi ca specialist, cântărește mult în alegerea mea.", {stil:1}],
   ]],
-  ["Pacienții", [
-    ["Vreau să vorbesc zilnic cu mulți pacienți.", {contact:1}],
-    ["M-aș simți bine lucrând mai mult cu imagini, lame sau date decât cu oameni.", {contact:-1, lab:.3, vizual:.3}],
-    ["Mi-ar plăcea să îmi urmăresc pacienții ani de zile.", {cont:1}],
-    ["Mă satisface mai mult să rezolv problema și să închid cazul.", {cont:-1}],
-    ["Îmi place să lucrez cu copii și cu părinții lor.", {copii:1}],
-    ["Îmi place să lucrez cu vârstnici care au multe boli asociate.", {varst:1}],
-    ["Sănătatea femeii, sarcina și nașterea mă interesează.", {fem:1}],
-    ["Îmi plac discuțiile lungi și latura psihologică și socială a bolii.", {psih:1}],
-    ["Am răbdare cu pacienți dificili, anxioși sau necooperanți.", {psih:.7, contact:.3}],
-    ["Îmi place să explic și să conving oamenii să-și schimbe stilul de viață.", {cont:.6, psih:.6, contact:.4}],
+  ["Relația cu pacientul", [
+    ["Vreau ca anamneza și examenul clinic să rămână centrale în munca mea, cu 20–30 de pacienți pe zi.", {contact:1}],
+    ["Aș prefera ca interlocutorii mei principali să fie alți medici, nu pacienții.", {contact:-1, lab:.2, vizual:.2}],
+    ["Mă motivează să urmăresc același pacient cronic ani de zile, cu reevaluări periodice.", {cont:1}],
+    ["Prefer episoade de îngrijire scurte: diagnostic, intervenție, externare sau transfer.", {cont:-1}],
+    ["Mă descurc bine cu pacientul pediatric: doze pe kilogram, examenul unui copil care plânge, părinți anxioși.", {copii:1}],
+    ["Mă atrage pacientul vârstnic polimorbid, cu polipragmazie și sindroame geriatrice.", {varst:1}],
+    ["Patologia obstetricală și ginecologică (sarcină, infertilitate, menopauză) mă interesează.", {fem:1}],
+    ["Aderența, familia și contextul social fac parte din actul medical pentru mine, nu sunt un obstacol.", {psih:1}],
+    ["Pot construi o alianță terapeutică cu pacienți dificili: agitați, cu adicții, fără insight.", {psih:.8, contact:.3}],
+    ["Consilierea pentru renunțarea la fumat, dietă și aderență mi se pare muncă medicală valoroasă, nu pierdere de timp.", {cont:.6, psih:.5, pop:.3}],
   ]],
-  ["Cum gândești", [
-    ["Îmi plac cazurile-puzzle, cu diagnostic diferențial lung.", {diag:1}],
-    ["Mă interesează mecanismele bolii la nivel celular și molecular.", {lab:.6, diag:.5}],
-    ["Prefer să știu puțin din toate decât totul despre un singur organ.", {larg:1}],
-    ["Vreau să devin expert într-un domeniu îngust.", {larg:-1}],
-    ["Sunt confortabil când nu știu încă ce are pacientul și trebuie să pornesc de la zero.", {larg:.6, acut:.4, diag:.3}],
-    ["Îmi place să ajustez fin tratamente și doze în timp.", {cont:.6, diag:.4, chir:-.4}],
-    ["Mă interesează prevenția și sănătatea populației mai mult decât pacientul individual.", {pop:1, contact:-.4}],
-    ["M-ar atrage o carieră în cercetare sau universitară.", {lab:.6, diag:.4}],
+  ["Raționament clinic", [
+    ["Mă motivează cazurile cu diagnostic diferențial larg, în care o analiză aparent banală schimbă tot.", {diag:1}],
+    ["Fiziopatologia la nivel molecular (căi de semnalizare, mutații, imunologie) mă interesează și după examen.", {lab:.6, diag:.5}],
+    ["Prefer să gestionez simultan patologia mai multor aparate decât să aprofundez un singur organ.", {larg:1}],
+    ["Vreau să ajung expertul la care colegii trimit cazurile foarte specifice.", {larg:-1}],
+    ["Sunt confortabil cu pacientul nediferențiat: simptom vag, fără diagnostic de trimitere.", {larg:.6, acut:.3, diag:.3}],
+    ["Îmi place titrarea fină a tratamentului: scheme de insulină, anticoagulare, imunosupresie.", {cont:.6, diag:.4, chir:-.4}],
+    ["Indicatorii populaționali (incidență, acoperire vaccinală, programe de screening) mă interesează mai mult decât cazul individual.", {pop:1, contact:-.4}],
+    ["Mă văd făcând doctorat, publicând și participând la studii clinice.", {lab:.6, diag:.4}],
   ]],
-  ["Carieră", [
-    ["Contează pentru mine să pot avea o activitate privată profitabilă.", {priv:1}],
-    ["Aș prefera să lucrez mai ales în ambulator, nu pe o secție cu internări.", {stil:.6, priv:.4, acut:-.4}],
-    ["Mă văd lucrând într-un spital mare, universitar, nu într-un cabinet.", {acut:.4, grav:.4, priv:-.4, stil:-.3}],
+  ["Carieră și sistem", [
+    ["Potențialul de activitate în privat (cabinet, proceduri la cerere) contează în decizia mea.", {priv:1}],
+    ["Mă văd lucrând predominant în ambulatoriu, nu pe o secție cu paturi.", {stil:.6, priv:.4, acut:-.4}],
+    ["Prefer un centru universitar cu cazuistică grea, chiar dacă programul e mai solicitant.", {acut:.4, grav:.4, priv:-.4, stil:-.3}],
   ]],
 ];
 const QUESTIONS = SECTIONS.flatMap(([sec, qs]) => qs.map(([t, m]) => ({ sec, t, m })));
-const LIKERT = [["1","Deloc"],["2","Puțin"],["3","Neutru"],["4","Destul"],["5","Foarte mult"]];
+const LIKERT = [["1","Dezacord total"],["2","Dezacord"],["3","Neutru"],["4","Acord"],["5","Acord total"]];
 const N_DUELS = 6;
 
 /* ===================== STARE ===================== */
@@ -569,15 +569,15 @@ function intro() {
   return `<section class="screen">
     <p class="eyebrow">Pentru absolvenți și rezidenți indeciși</p>
     <h1>Ce specialitate ți se potrivește la rezidențiat?</h1>
-    <p class="intro-lead">Răspunzi la ${QUESTIONS.length} afirmații despre cum îți place să lucrezi, alegi ce te atrage și ce nu ai accepta, apoi compari zile de lucru fără să vezi numele specialităților. La final primești un clasament al celor ${SPECS.length} specialități.</p>
+    <p class="intro-lead">Evaluezi ${QUESTIONS.length} afirmații despre activitatea clinică pe care ți-o dorești, alegi patologia și competențele care te atrag și ce excluzi categoric, apoi compari zile de lucru fără să vezi numele specialităților. La final primești un clasament al celor ${SPECS.length} specialități.</p>
     <div class="facts">
       <div><b class="mono">${SPECS.length}</b><span>specialități medicale evaluate</span></div>
       <div><b class="mono">${TOTAL_STEPS}</b><span>pași, cam 8 minute</span></div>
       <div><b class="mono">${DIMS.length}</b><span>dimensiuni ale profilului tău</span></div>
     </div>
     <ol class="steps">
-      <li><span><b>Afirmații.</b> Cât de mult te descrie fiecare, de la 1 la 5.</span></li>
-      <li><span><b>Interese.</b> Organele și activitățile care te atrag.</span></li>
+      <li><span><b>Afirmații clinice.</b> Acordul tău cu fiecare, de la 1 la 5.</span></li>
+      <li><span><b>Interese.</b> Domeniile de patologie și competențele pe care vrei să le practici.</span></li>
       <li><span><b>Criterii eliminatorii.</b> Ce nu ai face niciodată. Specialitățile care le încalcă sunt scoase din clasament, oricât de bine s-ar potrivi altfel.</span></li>
       <li><span><b>Departajare oarbă.</b> Primele patru specialități se înfruntă două câte două prin descrieri ale unei zile obișnuite, fără nume.</span></li>
     </ol>
@@ -614,9 +614,9 @@ function question() {
 }
 
 const MULTI = {
-  organs: { src: ORGANS, title: "Ce te fascinează în corpul uman?", sub: "Alege oricâte. Dacă nu alegi nimic, organele nu influențează scorul.", label: "Interese · organe", idx: 0 },
-  acts: { src: ACTS, title: "Ce activități te atrag?", sub: "Alege oricâte. Fiecare potrivire adaugă puncte specialităților care le fac.", label: "Interese · activități", idx: 1 },
-  deals: { src: DEALS.map((d, i) => [i, d[0]]), title: "Ce nu ai accepta în niciun caz?", sub: "Fiecare alegere elimină complet specialitățile care o implică. Alege doar ce chiar nu ai face.", label: "Criterii eliminatorii", idx: 2, no: true },
+  organs: { src: ORGANS, title: "Ce patologie te-a atras cel mai mult în stagii?", sub: "Alege oricâte. Dacă nu alegi nimic, domeniul de patologie nu influențează scorul.", label: "Interese · patologie", idx: 0 },
+  acts: { src: ACTS, title: "Ce competențe ai vrea să practici?", sub: "Alege oricâte. Fiecare potrivire adaugă puncte specialităților în care competența e de rutină.", label: "Interese · competențe", idx: 1 },
+  deals: { src: DEALS.map((d, i) => [i, d[0]]), title: "Ce excluzi categoric din viitoarea ta specialitate?", sub: "Fiecare alegere elimină complet specialitățile care o implică. Bifează doar ce chiar nu ai accepta.", label: "Criterii eliminatorii", idx: 2, no: true },
 };
 function multi(kind) {
   const m = MULTI[kind], sel = S[kind];
@@ -719,8 +719,8 @@ const pct = x => Math.round(Math.max(0, x) * 100);
 
 function optCard(r, i) {
   const good = r.good.map(f => `<li>${esc(cap(f.text))}</li>`);
-  if (r.om) good.push(`<li>Lucrează cu ${r.om === 1 ? "un organ" : r.om + " organe"} care te fascinează</li>`);
-  if (r.am) good.push(`<li>Include ${r.am === 1 ? "o activitate" : r.am + " activități"} care te atrag</li>`);
+  if (r.om) good.push(`<li>Acoperă ${r.om === 1 ? "un domeniu de patologie ales" : r.om + " domenii de patologie alese"} de tine</li>`);
+  if (r.am) good.push(`<li>Include ${r.am === 1 ? "o competență aleasă" : r.am + " competențe alese"} de tine</li>`);
   if (r.wins) good.push(`<li>Ai ales-o ${r.wins === 1 ? "o dată" : "de " + r.wins + " ori"} în departajarea oarbă</li>`);
   const bad = r.bad.map(f => `<li class="minus">${esc(DIMS.find(d => d[0] === f.k)[1])}: ${r.s.v[f.k]}/4 aici, dar tu ${esc(f.text)}</li>`);
   return `<li class="opt${i === 0 ? " first" : ""}">
