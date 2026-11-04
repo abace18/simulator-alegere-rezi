@@ -1,0 +1,819 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Simulator alegere rezidențiat</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Răspunde la întrebări și vezi ce specialitate de rezidențiat ți se potrivește.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: o coloană îngustă tip „fișă clinică”; o întrebare pe ecran; rezultatele ca o listă de opțiuni numerotată după rang. */
+:root {
+  --bg: #eef3f1;
+  --surface: #ffffff;
+  --ink: #12201c;
+  --muted: #5a6b66;
+  --line: #d3ddd9;
+  --accent: #0f6b52;
+  --accent-ink: #ffffff;
+  --mark: #dcefe7;
+  --warn: #a3412a;
+  --warn-bg: #f8e9e4;
+  --font-display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1412; --surface: #151f1c; --ink: #e5eeeb; --muted: #95a8a1; --line: #29372f;
+    --accent: #4cc59b; --accent-ink: #062019; --mark: #17372d; --warn: #e48c71; --warn-bg: #33201a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1412; --surface: #151f1c; --ink: #e5eeeb; --muted: #95a8a1; --line: #29372f;
+  --accent: #4cc59b; --accent-ink: #062019; --mark: #17372d; --warn: #e48c71; --warn-bg: #33201a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--bg); color: var(--ink); }
+body {
+  font-family: var(--font-body); font-size: 16px; line-height: 1.55; margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 48px;
+}
+.wrap { max-width: 720px; margin: 0 auto; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: clamp(2rem, 6vw, 3.1rem); font-weight: 800; font-stretch: 78%; line-height: 1.02; }
+h2 { font-size: 1.5rem; font-weight: 700; font-stretch: 85%; line-height: 1.15; }
+h3 { font-size: 1.1rem; font-weight: 700; font-stretch: 90%; }
+p { margin: 0; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.muted { color: var(--muted); }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+header.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 18px 10px; border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 700; font-stretch: 85%; font-size: 1.05rem; }
+.brand svg { width: 64px; height: 22px; flex: none; }
+.brand svg path { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+
+button { font: inherit; color: inherit; cursor: pointer; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 20px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.ghost { background: transparent; border-color: transparent; color: var(--muted); padding-inline: 8px; }
+.btn.ghost:hover { color: var(--ink); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.screen { display: grid; gap: 24px; padding-block: 32px 0; }
+
+/* Intro */
+.intro-lead { font-size: 1.1rem; max-width: 60ch; }
+.facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.facts div { background: var(--surface); padding: 14px 16px; display: grid; gap: 2px; }
+.facts b { font-family: var(--font-display); font-size: 1.6rem; font-stretch: 80%; font-weight: 800; }
+.facts span { font-size: 0.85rem; color: var(--muted); }
+.steps { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; counter-reset: s; }
+.steps li { display: grid; grid-template-columns: 28px 1fr; gap: 10px; counter-increment: s; }
+.steps li::before { content: counter(s); font-family: var(--font-mono); font-size: 0.8rem; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--accent); color: var(--accent); display: grid; place-items: center; margin-top: 2px; }
+.resume { padding: 14px 16px; border: 1px dashed var(--accent); border-radius: 10px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+
+/* Progress */
+.progress { display: grid; gap: 8px; }
+.progress-row { display: flex; justify-content: space-between; gap: 12px; font-size: 0.85rem; }
+.bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--accent); width: 0; transition: width .25s ease; }
+
+/* Question */
+.qcard { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 28px 22px; display: grid; gap: 24px; }
+.qtext { font-family: var(--font-display); font-size: clamp(1.3rem, 4.2vw, 1.75rem); font-weight: 600; font-stretch: 88%; line-height: 1.2; text-wrap: balance; }
+.likert { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.likert button { border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 12px 4px; display: grid; gap: 4px; justify-items: center; font-size: 0.78rem; line-height: 1.2; color: var(--muted); min-height: 76px; }
+.likert button b { font-family: var(--font-mono); font-size: 1.05rem; color: var(--ink); font-weight: 500; }
+.likert button:hover { border-color: var(--accent); }
+.likert button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.likert button[aria-pressed="true"] b { color: var(--accent-ink); }
+.qnav { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.hint { font-size: 0.8rem; color: var(--muted); }
+
+/* Chips */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 8px 14px; font-size: 0.92rem; }
+.chip:hover { border-color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--mark); border-color: var(--accent); color: var(--ink); font-weight: 600; }
+.chip.no[aria-pressed="true"] { background: var(--warn-bg); border-color: var(--warn); }
+
+/* Tiebreak */
+.duel { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.day { text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: grid; gap: 10px; align-content: start; }
+.day:hover { border-color: var(--accent); }
+.day .eyebrow { color: var(--accent); }
+.day p { font-size: 0.97rem; }
+
+/* Results */
+.verdict { display: grid; gap: 10px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 600; border-radius: 999px; padding: 4px 10px; background: var(--mark); color: var(--ink); width: fit-content; }
+.pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.pill.close::before { background: var(--warn); }
+.opts { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.opt { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 14px; }
+.opt.first { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.rank { font-family: var(--font-display); font-weight: 800; font-stretch: 75%; font-size: 2rem; line-height: 1; color: var(--accent); }
+.opt-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.score { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 500; }
+.meter { height: 5px; background: var(--line); border-radius: 3px; overflow: hidden; margin-block: 8px; }
+.meter i { display: block; height: 100%; background: var(--accent); }
+.opt-body { display: grid; gap: 8px; min-width: 0; }
+.why { display: grid; gap: 4px; font-size: 0.92rem; margin: 0; padding: 0; list-style: none; }
+.why li { padding-left: 18px; position: relative; }
+.why li::before { content: "+"; position: absolute; left: 0; font-family: var(--font-mono); color: var(--accent); }
+.why li.minus::before { content: "−"; color: var(--warn); }
+.meta { font-family: var(--font-mono); font-size: 0.78rem; color: var(--muted); }
+details { border-top: 1px solid var(--line); padding-top: 14px; }
+summary { cursor: pointer; font-weight: 600; }
+.table-wrap { overflow-x: auto; margin-top: 12px; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+td, th { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-family: var(--font-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 500; }
+td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.excluded td { color: var(--muted); }
+.profile { display: grid; gap: 8px; margin-top: 12px; }
+.prow { display: grid; grid-template-columns: minmax(0, 11rem) minmax(0, 1fr) minmax(0, 11rem); gap: 10px; align-items: center; font-size: 0.82rem; }
+.prow span:last-child { text-align: right; }
+.ptrack { height: 8px; background: var(--line); border-radius: 4px; position: relative; }
+.ptrack i { position: absolute; top: -3px; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); transform: translateX(-50%); }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.toast { font-size: 0.85rem; color: var(--accent); min-height: 1.2em; }
+.note { font-size: 0.9rem; color: var(--muted); display: grid; gap: 8px; border-left: 3px solid var(--line); padding-left: 14px; }
+.copybox { width: 100%; font-family: var(--font-mono); font-size: 0.8rem; padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
+
+@media (max-width: 560px) {
+  .facts { grid-template-columns: 1fr; }
+  .duel { grid-template-columns: 1fr; }
+  .likert button { font-size: 0.68rem; padding-inline: 2px; min-height: 70px; }
+  .opt { grid-template-columns: 1fr; gap: 6px; }
+  .prow { grid-template-columns: 1fr 1fr; }
+  .prow .ptrack { grid-column: 1 / -1; grid-row: 2; }
+}
+@media (prefers-reduced-motion: reduce) { .bar > i { transition: none; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 64 22" aria-hidden="true"><path d="M1 13 H18 L21 9 L24 13 H28 L31 2 L35 20 L38 13 H44 L47 10 L50 13 H63"/></svg>
+      Simulator rezidențiat
+    </div>
+    <button class="btn ghost" id="homeBtn" type="button">Începe din nou</button>
+  </header>
+  <main id="app"></main>
+</div>
+
+<script>
+/* ===================== DATE ===================== */
+// Dimensiuni (0–4 pentru fiecare specialitate)
+const DIMS = [
+  ["chir",   "Operații",                 "nu vrei să operezi",                "vrei să operezi"],
+  ["proc",   "Proceduri manuale",        "nu cauți proceduri manuale",       "vrei proceduri și gesturi tehnice"],
+  ["acut",   "Urgențe",                  "preferi ritmul calm",              "te energizează urgențele"],
+  ["cont",   "Continuitate",             "preferi să închizi cazul",         "vrei să urmărești pacienții ani de zile"],
+  ["diag",   "Raționament diagnostic",   "nu cauți cazuri-puzzle",           "îți plac cazurile-puzzle"],
+  ["contact","Contact cu pacienții",     "preferi puțin contact cu pacienții","vrei mult contact cu pacienții"],
+  ["stil",   "Program controlabil",      "accepți gărzi multe",              "vrei program predictibil"],
+  ["copii",  "Copii",                    "nu cauți lucrul cu copii",         "vrei să lucrezi cu copii"],
+  ["tech",   "Tehnologie",               "tehnologia nu e prioritară",       "te atrage tehnologia medicală"],
+  ["priv",   "Potențial privat",         "privatul nu contează",             "contează activitatea privată"],
+  ["psih",   "Latura psihosocială",      "nu cauți latura psihosocială",     "îți place latura psihosocială"],
+  ["lab",    "Laborator și cercetare",   "nu te atrage laboratorul",         "te atrage laboratorul și cercetarea"],
+  ["grav",   "Pacienți critici",         "eviți pacienții critici",          "poți gestiona pacienți critici"],
+  ["larg",   "Generalist",               "vrei să fii ultra-specializat",    "vrei să știi din toate"],
+  ["fem",    "Sănătatea femeii",         "sănătatea femeii nu e prioritară", "te interesează sănătatea femeii"],
+  ["vizual", "Recunoaștere vizuală",     "nu te bazezi pe tipare vizuale",   "ai ochi pentru tipare vizuale"],
+  ["varst",  "Vârstnici",                "nu cauți pacienți vârstnici",      "îți place să lucrezi cu vârstnici"],
+  ["pop",    "Sănătate publică",         "preferi pacientul individual",     "te interesează sănătatea populației"],
+];
+
+const ORGANS = [
+  ["inima","Inima"],["vase","Vasele de sânge"],["creier","Creierul și nervii"],["plamani","Plămânii"],
+  ["digestiv","Tubul digestiv și ficatul"],["rinichi","Rinichii și căile urinare"],["hormoni","Hormonii și metabolismul"],
+  ["sange","Sângele"],["imun","Infecțiile și imunitatea"],["piele","Pielea"],["ochi","Ochiul"],["orl","Urechea, nasul, gâtul"],
+  ["oase","Oasele, articulațiile, mușchii"],["reproducere","Aparatul reproducător"],["psihic","Mintea și comportamentul"],
+  ["cancer","Cancerul"],["tot","Organismul ca întreg"],
+];
+
+const ACTS = [
+  ["eco","Ecografie"],["endo","Endoscopie (gastro, bronho, uro)"],["interv","Cateterism și proceduri intervenționale"],
+  ["minv","Chirurgie laparoscopică sau robotică"],["microchir","Microchirurgie"],["ventilatie","Ventilație și suport vital"],
+  ["nasteri","Nașteri"],["estetic","Medicină estetică"],["sport","Sportivi și performanță fizică"],["reabilitare","Recuperare și reabilitare"],
+  ["nutritie","Nutriție"],["genetica","Genetică"],["microscop","Microscop și lame"],["autopsii","Autopsii și expertize judiciare"],
+  ["psihoterapie","Psihoterapie"],["epidemii","Epidemii și vaccinare"],["management","Management sanitar"],["cercetare","Cercetare clinică"],
+];
+
+const DEALS = [
+  ["Să operez", s => s.v.chir >= 3, "implică operații"],
+  ["Gărzi multe și nopți nedormite", s => s.v.stil <= 1, "are multe gărzi"],
+  ["Să lucrez cu copii", s => s.v.copii >= 3, "lucrezi mult cu copii"],
+  ["Să lucrez aproape fără pacienți", s => s.v.contact <= 1, "are puțin contact cu pacienții"],
+  ["Decese frecvente și pacienți terminali", s => s.v.grav >= 4, "are decese frecvente"],
+  ["Un rezidențiat de 6 ani", s => s.y >= 6, "durează 6 ani"],
+  ["Autopsii", s => s.a.includes("autopsii"), "implică autopsii"],
+  ["Nașteri și sala de nașteri", s => s.a.includes("nasteri") || s.v.fem >= 4, "implică nașteri"],
+  ["Pacienți psihiatrici", s => s.o.includes("psihic"), "lucrezi cu pacienți psihiatrici"],
+  ["Urgențe zilnice", s => s.v.acut >= 4, "are urgențe zilnice"],
+];
+
+// v: chir proc acut cont diag contact stil copii tech priv psih lab grav larg fem vizual varst pop
+const RAW = [
+ ["Alergologie și imunologie clinică",5,"0 1 1 3 3 3 4 2 1 3 2 2 1 2 1 1 1 1","imun plamani piele","cercetare",
+  "Alergii, astm, urticarii, imunodeficiențe: diagnostic prin teste și tratament pe termen lung.",
+  "Dimineața faci teste cutanate și interpretezi IgE specifice. După-amiaza ajustezi imunoterapia unor pacienți pe care îi știi de ani de zile."],
+ ["Anatomie patologică",5,"0 1 0 0 4 0 4 0 2 2 0 4 1 3 1 4 1 1","cancer tot","microscop autopsii",
+  "Diagnosticul final pe țesut: biopsii, piese operatorii, citologie. Medicul din spatele fiecărui diagnostic de cancer.",
+  "Stai la microscop și treci prin zeci de lame, căutând tipare celulare. Discuți la telefon cu un chirurg care așteaptă rezultatul unei extemporanee."],
+ ["Anestezie și terapie intensivă",5,"1 4 4 0 3 2 0 1 3 1 1 1 4 3 1 1 3 0","tot plamani inima","ventilatie eco",
+  "Ții pacientul în viață în sala de operație și pe terapie intensivă: anestezie, ventilație, șoc, resuscitare.",
+  "Intubezi primul pacient la 8, pui un cateter central ghidat ecografic și reglezi un ventilator. Noaptea stabilizezi un pacient în șoc septic."],
+ ["Boli infecțioase",5,"0 1 3 2 4 3 2 2 1 1 2 2 3 3 1 1 2 3","imun tot","epidemii",
+  "Infecții de la banal la rar: sepsis, HIV, hepatite, infecții tropicale, rezistență la antibiotice.",
+  "Faci vizita la pacienți cu febră de cauză necunoscută și refaci anamneza de călătorii. Discuți cu microbiologul despre o tulpină rezistentă."],
+ ["Cardiologie",6,"0 3 3 3 3 3 1 0 4 4 1 1 3 1 1 2 3 1","inima vase","eco interv",
+  "Inima de la insuficiență cronică la infarct acut: ecografie, cateterism, aritmii, prevenție.",
+  "Dimineața faci ecografii cardiace, apoi intri în sala de cateterism pentru un pacient cu durere toracică. După-amiaza vezi în ambulator pacienții cu tensiune greu de controlat."],
+ ["Chirurgie cardiovasculară",6,"4 4 3 1 2 2 0 0 4 2 0 0 4 0 0 1 3 0","inima vase","microchir",
+  "Bypass, valve, disecții de aortă. Operații lungi, cu circulație extracorporeală.",
+  "Ești în sală de la 7 la 15 pentru un bypass triplu, cu inima oprită și pompa pornită. Seara verifici pacientul pe terapie intensivă."],
+ ["Chirurgie generală",6,"4 3 4 1 2 3 0 0 2 3 1 0 3 2 1 1 2 0","digestiv cancer","minv",
+  "Abdomenul și nu numai: hernii, colecistectomii, cancere digestive, urgențe chirurgicale.",
+  "Faci două colecistectomii laparoscopice dimineața. Noaptea, în gardă, operezi o apendicită și o ocluzie intestinală."],
+ ["Chirurgie orală și maxilo-facială",5,"4 4 2 1 2 3 2 0 2 4 1 0 2 0 0 2 1 0","orl oase cancer","microchir estetic",
+  "Fracturi faciale, tumori ale feței și gurii, malformații. Necesită și pregătire de medicină dentară.",
+  "Reduci o fractură de mandibulă cu plăcuțe din titan. După-amiaza planifici pe computer reconstrucția feței unui pacient operat de cancer."],
+ ["Chirurgie pediatrică",5,"4 3 3 2 2 3 1 4 2 2 2 0 2 2 0 1 0 0","digestiv tot","minv",
+  "Chirurgie pe copii, de la nou-născuți cu malformații la adolescenți cu apendicită.",
+  "Operezi o hernie inghinală la un copil de doi ani, apoi liniștești părinții la ieșirea din sală. Seara vezi în urgență un copil cu dureri abdominale."],
+ ["Chirurgie plastică, estetică și microchirurgie reconstructivă",6,"4 4 2 1 1 3 2 0 2 4 2 0 1 1 1 3 1 0","piele","estetic microchir",
+  "Reconstrucție după arsuri, traume și cancer, microchirurgie de mână și chirurgie estetică.",
+  "Faci o reconstrucție de sân cu lambou liber sub microscop, apoi un pansament la un pacient ars. A doua zi ai consultații de estetică în privat."],
+ ["Chirurgie toracică",6,"4 3 2 1 2 2 1 0 3 1 0 0 3 0 0 1 3 0","plamani cancer","minv",
+  "Plămâni, mediastin, perete toracic. Mult cancer pulmonar și chirurgie toracoscopică.",
+  "Faci o lobectomie toracoscopică pentru o tumoră pulmonară. Apoi discuți în comisia oncologică ce pacienți mai pot fi operați."],
+ ["Chirurgie vasculară",6,"4 4 3 2 2 2 1 0 3 3 0 0 3 0 0 2 4 0","vase","interv eco",
+  "Artere și vene: anevrisme, ischemie de membre, stenoze carotidiene, proceduri endovasculare.",
+  "Pui un stent pe o arteră femurală, apoi faci un bypass la un pacient diabetic. Urmărești în ambulator anevrisme mici pe ecografie."],
+ ["Dermatovenerologie",5,"1 3 0 3 3 4 4 1 2 4 2 2 0 1 2 4 2 1","piele imun","estetic",
+  "Boli de piele, păr, unghii și boli venerice. Diagnostic vizual, dermatoscopie, mici proceduri.",
+  "Vezi 25 de pacienți în cabinet: psoriazis, acnee, un nev suspect la dermatoscop. Excizezi două leziuni și închei ziua la 15."],
+ ["Diabet zaharat, nutriție și boli metabolice",5,"0 1 1 4 2 4 4 1 2 3 3 1 1 2 1 0 3 2","hormoni digestiv","nutritie",
+  "Diabet, obezitate, dislipidemii. Tratament pe termen lung și educație terapeutică.",
+  "Ajustezi scheme de insulină și citești date de la senzori de glicemie. Discuți cu un pacient cum să-și schimbe alimentația fără să renunțe la tot."],
+ ["Endocrinologie",5,"0 1 1 4 4 3 4 1 2 4 2 2 1 1 3 1 2 1","hormoni reproducere","eco",
+  "Tiroidă, hipofiză, suprarenale, fertilitate. Diagnostic hormonal fin și urmărire îndelungată.",
+  "Faci ecografii tiroidiene și interpretezi un profil hormonal ciudat. Investighezi o cauză rară de hipertensiune."],
+ ["Epidemiologie",4,"0 0 1 0 3 0 4 1 3 0 1 3 0 4 0 0 1 4","imun","epidemii cercetare management",
+  "Supraveghezi bolile la nivel de populație, investighezi focare, proiectezi studii.",
+  "Analizezi datele unui focar de rujeolă și scrii recomandările pentru direcția de sănătate publică. Rulezi un model statistic pentru un studiu."],
+ ["Gastroenterologie",5,"0 4 3 3 3 3 2 0 4 4 1 1 2 1 1 3 2 1","digestiv cancer","endo eco",
+  "Esofag, stomac, intestin, ficat, pancreas. Endoscopie diagnostică și terapeutică.",
+  "Faci zece colonoscopii și scoți câțiva polipi. Seara, în gardă, oprești endoscopic o hemoragie digestivă."],
+ ["Genetică medicală",4,"0 0 0 3 4 2 4 3 3 1 3 4 1 2 2 2 0 1","tot","genetica cercetare",
+  "Boli genetice și sindroame rare, sfat genetic, interpretarea testelor genomice.",
+  "Examinezi un copil cu trăsături dismorfice și construiești arborele genealogic. Interpretezi o variantă genetică și explici familiei ce înseamnă."],
+ ["Geriatrie și gerontologie",4,"0 1 1 4 3 4 3 0 1 1 3 0 3 4 1 0 4 1","tot creier","reabilitare",
+  "Pacientul vârstnic fragil: polimedicație, demență, căderi, plan de îngrijire.",
+  "Reduci lista de medicamente a unei paciente de 84 de ani de la 14 la 7. Evaluezi memoria unui pacient și discuți cu familia despre îngrijire."],
+ ["Hematologie",5,"0 2 3 3 4 3 2 0 2 1 2 3 4 1 1 3 3 0","sange cancer","microscop",
+  "Leucemii, limfoame, anemii, tulburări de coagulare, transplant medular.",
+  "Faci o puncție medulară și te uiți singur pe frotiu. Ajustezi chimioterapia unui pacient cu leucemie pe care îl urmărești de luni."],
+ ["Medicină de familie",4,"0 1 1 4 3 4 4 3 1 3 4 0 1 4 3 1 3 3","tot","management",
+  "Primul medic al pacientului, pentru toate vârstele: prevenție, boli cronice, trimiteri.",
+  "Vezi 30 de pacienți: un bebeluș la vaccin, o gripă, un diabetic, o femeie gravidă. Îi cunoști pe toți pe nume, și pe familiile lor."],
+ ["Medicină de laborator",4,"0 1 0 0 3 0 4 0 4 3 0 4 0 3 1 2 1 1","sange tot","microscop",
+  "Analizele de laborator de la validare la controlul calității: biochimie, hematologie, imunologie.",
+  "Validezi sute de rezultate, investighezi o valoare aberantă și calibrezi un analizor nou. Pleci acasă la ora fixă."],
+ ["Medicină de urgență",5,"1 4 4 0 3 4 2 2 2 1 2 0 4 4 1 1 2 1","tot","eco ventilatie",
+  "Orice pacient, oricând, în primele minute: triaj, resuscitare, stabilizare. Program pe ture.",
+  "Într-o tură de 12 ore vezi o fractură, un infarct, un copil cu convulsii și o resuscitare. Predai tura și ai două zile libere."],
+ ["Medicină fizică și de reabilitare",4,"0 2 0 3 2 4 4 1 2 3 2 0 0 2 0 1 3 0","oase creier","reabilitare sport",
+  "Recuperare după AVC, fracturi, operații și boli cronice: kinetoterapie, electroterapie, infiltrații.",
+  "Faci planul de recuperare pentru un pacient după AVC și o infiltrație ecoghidată la un umăr. Vezi progresul pacienților săptămână de săptămână."],
+ ["Medicină internă",5,"0 2 2 3 4 3 1 0 2 2 2 1 3 4 1 1 4 1","tot","eco",
+  "Adultul cu mai multe boli deodată. Raționament clinic larg și coordonarea tuturor specialităților.",
+  "Faci vizita pe secție la 20 de pacienți cu insuficiență cardiacă, ciroză și pneumonie. Pui cap la cap analize care nu se leagă și găsești o boală rară."],
+ ["Medicină legală",5,"0 2 1 0 4 1 3 0 2 1 1 3 0 3 1 3 1 2","tot","autopsii",
+  "Autopsii, expertize pe persoane vii, traumatologie judiciară. Interfața dintre medicină și justiție.",
+  "Faci o autopsie pentru un deces suspect și documentezi leziunile. După-amiaza examinezi o victimă a unei agresiuni și redactezi raportul pentru instanță."],
+ ["Medicina muncii",4,"0 0 0 2 2 3 4 0 1 2 2 0 0 3 1 0 1 4","plamani tot","management",
+  "Sănătatea angajaților: aptitudine, boli profesionale, prevenție la locul de muncă.",
+  "Faci controale medicale periodice într-o fabrică și vizitezi linia de producție să vezi expunerile. Investighezi un caz de astm profesional."],
+ ["Medicină nucleară",4,"0 2 0 1 3 1 4 1 4 2 0 3 1 2 1 3 2 0","cancer hormoni","cercetare",
+  "Imagistică funcțională (PET-CT, scintigrafie) și terapie cu radioizotopi.",
+  "Interpretezi scanări PET-CT pentru stadializarea cancerelor. Administrezi iod radioactiv unui pacient cu cancer tiroidian."],
+ ["Medicină sportivă",3,"0 2 1 2 2 4 3 2 2 3 2 1 0 2 0 1 0 1","oase inima","sport reabilitare",
+  "Sportivi de la amatori la loturi naționale: evaluare de efort, leziuni, prevenție.",
+  "Faci teste de efort pentru o echipă de handbal și verifici ECG-uri. Apoi tratezi o entorsă și ești pe banca de rezerve la meciul de seară."],
+ ["Microbiologie medicală",4,"0 0 0 0 3 0 4 0 2 1 0 4 0 2 0 2 0 3","imun","microscop epidemii",
+  "Identifici bacterii, virusuri și fungi, testezi rezistența la antibiotice, supraveghezi infecțiile din spital.",
+  "Citești culturi, faci antibiograme și identifici o bacterie rezistentă. Suni clinicienii să schimbe tratamentul."],
+ ["Nefrologie",5,"0 3 2 4 4 3 1 0 3 2 2 1 3 1 1 1 4 0","rinichi","eco",
+  "Boală cronică de rinichi, dializă, transplant, tulburări hidroelectrolitice.",
+  "Faci vizita în sala de dializă la pacienți pe care îi știi de ani. Pui un cateter de dializă și descifrezi o hiponatremie severă."],
+ ["Neonatologie",5,"0 3 4 1 3 2 1 4 3 1 2 1 3 2 2 1 0 1","tot","ventilatie nasteri",
+  "Nou-născuți, inclusiv prematuri de câteva sute de grame. Terapie intensivă neonatală.",
+  "Ești chemat la o cezariană pentru un prematur și îl ventilezi în primele minute. Reglezi nutriția unor bebeluși de un kilogram."],
+ ["Neurochirurgie",6,"4 4 4 1 3 2 0 1 4 3 0 0 4 0 0 2 2 0","creier","microchir",
+  "Creier și coloană: tumori, hematoame, hernii de disc, anevrisme. Operații fine și urgențe grave.",
+  "Operezi sub microscop o tumoră cerebrală, cu neuronavigație. Noaptea evacuezi un hematom la un pacient după un accident."],
+ ["Neurologie",5,"0 2 3 3 4 3 2 0 3 2 2 1 3 1 1 2 3 0","creier","interv",
+  "AVC, epilepsie, scleroză multiplă, Parkinson, demențe. Examen neurologic minuțios.",
+  "Faci tromboliză la un AVC acut în primele minute. După-amiaza localizezi o leziune doar din examenul clinic și apoi o confirmi pe RMN."],
+ ["Neurologie pediatrică",5,"0 1 2 4 4 3 3 4 3 2 3 1 2 1 0 1 0 0","creier","genetica",
+  "Epilepsii, întârzieri de dezvoltare, boli neuromusculare și genetice la copii.",
+  "Citești EEG-ul unui copil cu convulsii și ajustezi tratamentul. Urmărești dezvoltarea unui copil cu un sindrom genetic rar."],
+ ["Obstetrică-ginecologie",5,"3 4 4 2 2 4 0 1 3 4 2 0 2 1 4 2 0 1","reproducere","nasteri eco minv",
+  "Sarcină, naștere, infertilitate, chirurgie ginecologică. Combină chirurgia cu continuitatea.",
+  "Faci ecografii de sarcină dimineața și o histerectomie laparoscopică. Noaptea asiști trei nașteri și faci o cezariană de urgență."],
+ ["Oftalmologie",4,"3 4 1 3 3 3 3 2 4 4 1 0 0 0 1 4 3 0","ochi","microchir",
+  "Ochiul de la ochelari la cataractă, glaucom și retină. Microchirurgie cu rezultate imediate.",
+  "Operezi șase cataracte sub microscop, fiecare în 15 minute. După-amiaza faci laser pe retină la un pacient diabetic."],
+ ["Oncologie medicală",5,"0 1 1 4 3 4 3 0 2 2 4 2 4 1 2 1 3 1","cancer","cercetare",
+  "Tratamentul sistemic al cancerului: chimio, imunoterapie, terapii țintite, studii clinice.",
+  "Alegi tratamentul pe baza profilului molecular al tumorii și discuți cu un pacient vestea unei progresii. Înscrii pe altcineva într-un studiu clinic."],
+ ["Ortopedie pediatrică",5,"4 4 2 3 2 3 2 4 3 3 1 0 1 0 0 2 0 0","oase","",
+  "Malformații, scolioză, fracturi la copii. Urmărești creșterea scheletului ani de zile.",
+  "Pui un ghips unui copil cu fractură de antebraț și urmărești pe radiografie corecția unui picior strâmb. Operezi o scolioză."],
+ ["Ortopedie și traumatologie",5,"4 4 3 1 2 3 1 1 3 4 0 0 1 1 0 2 3 0","oase","sport minv",
+  "Fracturi, proteze, artroscopie, leziuni sportive. Muncă fizică, rezultate vizibile.",
+  "Pui o proteză de șold dimineața și faci o artroscopie de genunchi. În gardă fixezi o fractură după un accident."],
+ ["Otorinolaringologie (ORL)",5,"3 4 2 2 2 3 2 2 3 4 1 0 2 0 0 2 1 0","orl","endo microchir",
+  "Ureche, nas, sinusuri, laringe, tumori de cap și gât. Cabinet și chirurgie endoscopică.",
+  "Faci o chirurgie endoscopică de sinusuri și o amigdalectomie. În cabinet scoți un corp străin din urechea unui copil."],
+ ["Pediatrie",5,"0 1 2 3 3 4 2 4 1 3 3 0 2 4 1 1 0 1","tot","eco",
+  "Medicina internă a copilului, de la sugar la adolescent. Contact intens cu familiile.",
+  "Faci vizita la copii cu bronșiolită și deshidratare și explici părinților îngrijorați ce urmează. În gardă vezi un copil cu febră și erupție."],
+ ["Pneumologie",5,"0 3 2 3 3 3 2 0 3 2 1 1 3 1 0 2 3 1","plamani","endo ventilatie",
+  "Astm, BPOC, tuberculoză, cancer pulmonar, apnee în somn. Bronhoscopie și ventilație noninvazivă.",
+  "Faci o bronhoscopie cu biopsie și interpretezi o polisomnografie. Ajustezi ventilația noninvazivă la un pacient cu BPOC."],
+ ["Psihiatrie",5,"0 0 2 4 3 4 3 0 0 3 4 0 1 2 1 0 2 1","psihic creier","psihoterapie",
+  "Depresie, schizofrenie, tulburare bipolară, adicții. Instrumentul principal ești tu și conversația.",
+  "Ai trei consultații lungi: un pacient cu primul episod psihotic, o depresie rezistentă, un caz de adicție. Ajustezi tratamentul și construiești relația."],
+ ["Psihiatrie pediatrică",5,"0 0 1 4 3 4 4 4 0 3 4 0 0 2 0 0 0 1","psihic","psihoterapie",
+  "Autism, ADHD, anxietate, tulburări de alimentație la copii și adolescenți. Lucru cu familia și școala.",
+  "Evaluezi un copil pentru autism prin joc și observație. Discuți cu părinții și cu profesoara despre un adolescent cu anxietate."],
+ ["Radiologie și imagistică medicală",5,"0 2 1 0 4 1 3 1 4 4 0 1 1 3 1 4 2 0","tot","eco interv",
+  "CT, RMN, ecografie, radiologie intervențională. Diagnosticul pentru aproape toate specialitățile.",
+  "Citești 60 de CT-uri și RMN-uri într-o cameră întunecată, cu două monitoare. Faci câteva ecografii și o biopsie ghidată."],
+ ["Radioterapie",5,"0 1 0 3 2 3 4 0 4 2 2 2 4 1 1 2 3 0","cancer","cercetare",
+  "Tratamentul cancerului cu radiații: planificare 3D, fizică medicală, urmărire.",
+  "Conturezi tumora și organele de protejat pe un CT de planificare, apoi verifici planul cu fizicianul. Vezi pacienții săptămânal în timpul tratamentului."],
+ ["Reumatologie",5,"0 2 0 4 4 3 4 0 2 3 2 1 1 2 2 2 3 0","oase imun","eco",
+  "Poliartrită, lupus, vasculite, spondilită. Boli autoimune sistemice cu diagnostic dificil.",
+  "Faci ecografie articulară și o infiltrație. Pui diagnosticul de lupus unei paciente tinere după luni de investigații."],
+ ["Sănătate publică și management",4,"0 0 0 0 2 0 4 0 2 1 2 2 0 4 1 0 1 4","","management epidemii",
+  "Politici de sănătate, organizarea serviciilor, programe naționale, conducerea spitalelor.",
+  "Lucrezi la bugetul unui program de screening și prezinți date despre listele de așteptare. Ai o ședință cu conducerea unui spital."],
+ ["Urologie",5,"4 4 2 2 2 3 2 0 3 4 1 0 2 0 0 2 4 0","rinichi reproducere cancer","endo minv",
+  "Rinichi, prostată, vezică: litiază, cancere urologice, endourologie și chirurgie robotică.",
+  "Spargi un calcul renal cu laser pe cale endoscopică și faci o prostatectomie robotică. În cabinet vezi pacienți vârstnici cu probleme de prostată."],
+ ["Cardiologie pediatrică",5,"0 3 2 4 4 3 2 4 4 2 2 0 2 0 0 2 0 0","inima","eco",
+  "Malformații cardiace congenitale și boli de inimă la copii, de la făt la adolescent.",
+  "Faci o ecocardiografie fetală și descoperi o malformație. Urmărești un copil operat la naștere care acum merge la școală."],
+];
+
+const SPECS = RAW.map(([n, y, v, o, a, d, day], i) => {
+  const arr = v.split(" ").map(Number);
+  const vv = {}; DIMS.forEach(([k], j) => vv[k] = arr[j]);
+  return { id: i, n, y, v: vv, o: o ? o.split(" ") : [], a: a ? a.split(" ") : [], d, day };
+});
+
+// Media fiecărei dimensiuni, ca să arătăm doar motivele caracteristice unei specialități
+const MEAN = {}; DIMS.forEach(([k]) => MEAN[k] = SPECS.reduce((t, s) => t + s.v[k], 0) / SPECS.length);
+
+const SECTIONS = [
+  ["Cum îți place să lucrezi", [
+    ["Mă văd operând câteva ore pe zi, în sala de operație.", {chir:1}],
+    ["Îmi place să fac lucruri cu mâinile: manevre, puncții, gesturi tehnice fine.", {proc:1, chir:.4}],
+    ["Vreau să văd rezultatul imediat după ce intervin.", {chir:.6, proc:.6, cont:-.4}],
+    ["Sângele, fluidele și mirosurile de spital nu mă deranjează deloc.", {chir:.6, proc:.5, acut:.3}],
+    ["Pot sta în picioare ore în șir fără să mă deranjeze.", {chir:.7, proc:.4, acut:.3}],
+    ["Mă atrage tehnologia medicală: aparate, imagistică, software.", {tech:1}],
+    ["Am ochi bun pentru detalii vizuale și recunosc repede tipare.", {vizual:1}],
+    ["Mi-ar plăcea să lucrez la microscop sau în laborator.", {lab:1, contact:-.4}],
+  ]],
+  ["Ritm și intensitate", [
+    ["Mă energizează urgențele, când trebuie să decid în câteva secunde.", {acut:1}],
+    ["Prefer deciziile luate pe îndelete, fără dramatism.", {acut:-1}],
+    ["Pot gestiona emoțional pacienți critici și decese frecvente.", {grav:1}],
+    ["Lucrul cu pacienți oncologici sau terminali nu mă sperie.", {grav:.8, psih:.3}],
+    ["Accept multe gărzi și program imprevizibil dacă munca mă pasionează.", {stil:-1}],
+    ["Serile și weekendurile libere sunt o prioritate clară pentru mine.", {stil:1}],
+  ]],
+  ["Pacienții", [
+    ["Vreau să vorbesc zilnic cu mulți pacienți.", {contact:1}],
+    ["M-aș simți bine lucrând mai mult cu imagini, lame sau date decât cu oameni.", {contact:-1, lab:.3, vizual:.3}],
+    ["Mi-ar plăcea să îmi urmăresc pacienții ani de zile.", {cont:1}],
+    ["Mă satisface mai mult să rezolv problema și să închid cazul.", {cont:-1}],
+    ["Îmi place să lucrez cu copii și cu părinții lor.", {copii:1}],
+    ["Îmi place să lucrez cu vârstnici care au multe boli asociate.", {varst:1}],
+    ["Sănătatea femeii, sarcina și nașterea mă interesează.", {fem:1}],
+    ["Îmi plac discuțiile lungi și latura psihologică și socială a bolii.", {psih:1}],
+    ["Am răbdare cu pacienți dificili, anxioși sau necooperanți.", {psih:.7, contact:.3}],
+    ["Îmi place să explic și să conving oamenii să-și schimbe stilul de viață.", {cont:.6, psih:.6, contact:.4}],
+  ]],
+  ["Cum gândești", [
+    ["Îmi plac cazurile-puzzle, cu diagnostic diferențial lung.", {diag:1}],
+    ["Mă interesează mecanismele bolii la nivel celular și molecular.", {lab:.6, diag:.5}],
+    ["Prefer să știu puțin din toate decât totul despre un singur organ.", {larg:1}],
+    ["Vreau să devin expert într-un domeniu îngust.", {larg:-1}],
+    ["Sunt confortabil când nu știu încă ce are pacientul și trebuie să pornesc de la zero.", {larg:.6, acut:.4, diag:.3}],
+    ["Îmi place să ajustez fin tratamente și doze în timp.", {cont:.6, diag:.4, chir:-.4}],
+    ["Mă interesează prevenția și sănătatea populației mai mult decât pacientul individual.", {pop:1, contact:-.4}],
+    ["M-ar atrage o carieră în cercetare sau universitară.", {lab:.6, diag:.4}],
+  ]],
+  ["Carieră", [
+    ["Contează pentru mine să pot avea o activitate privată profitabilă.", {priv:1}],
+    ["Aș prefera să lucrez mai ales în ambulator, nu pe o secție cu internări.", {stil:.6, priv:.4, acut:-.4}],
+    ["Mă văd lucrând într-un spital mare, universitar, nu într-un cabinet.", {acut:.4, grav:.4, priv:-.4, stil:-.3}],
+  ]],
+];
+const QUESTIONS = SECTIONS.flatMap(([sec, qs]) => qs.map(([t, m]) => ({ sec, t, m })));
+const LIKERT = [["1","Deloc"],["2","Puțin"],["3","Neutru"],["4","Destul"],["5","Foarte mult"]];
+const N_DUELS = 6;
+
+/* ===================== STARE ===================== */
+let S = fresh();
+function fresh() { return { step: "intro", qi: 0, ans: Array(QUESTIONS.length).fill(0), organs: [], acts: [], deals: [], duels: [], di: 0 }; }
+function save() { try { localStorage.setItem("rezi-sim", JSON.stringify(S)); } catch (e) {} }
+function loadSaved() { try { const x = JSON.parse(localStorage.getItem("rezi-sim")); if (x && x.ans && x.ans.length === QUESTIONS.length) return x; } catch (e) {} return null; }
+
+/* ===================== SCOR ===================== */
+function profile(ans) {
+  const acc = {}, cnt = {};
+  DIMS.forEach(([k]) => { acc[k] = 0; cnt[k] = 0; });
+  QUESTIONS.forEach((q, i) => {
+    if (!ans[i]) return;
+    const c = (ans[i] - 3) / 2;
+    for (const [k, w] of Object.entries(q.m)) { acc[k] += c * w; cnt[k] += Math.abs(w); }
+  });
+  const p = {};
+  DIMS.forEach(([k]) => {
+    const m = cnt[k] ? Math.max(-1, Math.min(1, acc[k] / cnt[k])) : 0;
+    p[k] = { pref: 2 + 2 * m, str: Math.abs(m) };
+  });
+  return p;
+}
+
+function scoreAll(st) {
+  const p = profile(st.ans);
+  const res = SPECS.map(s => {
+    const ex = st.deals.filter(di => DEALS[di][1](s)).map(di => DEALS[di][2]);
+    let num = 0, den = 0;
+    const fits = [];
+    DIMS.forEach(([k, label, lo, hi]) => {
+      const { pref, str } = p[k];
+      const w = 0.4 + 2 * str * str + str;
+      const gap = Math.abs(pref - s.v[k]);
+      num += w * (1 - gap / 4); den += w;
+      if (str >= 0.4) fits.push({ k, gap, str, text: pref > 2 ? hi : lo });
+    });
+    let sc = num / den;
+    const om = s.o.filter(o => st.organs.includes(o)).length;
+    if (st.organs.length) sc += om ? Math.min(0.1, 0.045 * om) : (s.o.includes("tot") ? 0 : -0.03);
+    const am = s.a.filter(a => st.acts.includes(a)).length;
+    sc += Math.min(0.08, 0.03 * am);
+    return { s, raw: sc, ex, om, am,
+      good: fits.filter(f => f.gap <= 1 && Math.abs(s.v[f.k] - MEAN[f.k]) >= 0.9)
+        .sort((a, b) => b.str * Math.abs(s.v[b.k] - MEAN[b.k]) - a.str * Math.abs(s.v[a.k] - MEAN[a.k])).slice(0, 3),
+      bad: fits.filter(f => f.gap >= 2).sort((a, b) => b.gap * b.str - a.gap * a.str).slice(0, 2) };
+  });
+  return res;
+}
+
+function duelPairs(ranked) {
+  const t = ranked.slice(0, 4).map(r => r.s.id);
+  const pairs = [];
+  for (let i = 0; i < t.length; i++) for (let j = i + 1; j < t.length; j++) pairs.push([t[i], t[j]]);
+  return pairs;
+}
+
+function rankEligible(st) {
+  return scoreAll(st).filter(r => !r.ex.length).sort((a, b) => b.raw - a.raw);
+}
+
+function finalResults(st) {
+  const all = scoreAll(st);
+  const ok = all.filter(r => !r.ex.length).sort((a, b) => b.raw - a.raw);
+  const pairs = duelPairs(ok);
+  const wins = {};
+  pairs.forEach(([a, b], i) => {
+    const w = st.duels[i];
+    if (w === 0) wins[a] = (wins[a] || 0) + 1;
+    if (w === 1) wins[b] = (wins[b] || 0) + 1;
+  });
+  ok.forEach(r => { r.wins = wins[r.s.id] || 0; r.fin = Math.min(0.99, r.raw + 0.03 * r.wins); });
+  ok.sort((a, b) => b.fin - a.fin);
+  const ex = all.filter(r => r.ex.length).sort((a, b) => b.raw - a.raw);
+  return { ok, ex, p: profile(st.ans), dueled: pairs.length > 0 && st.duels.length >= pairs.length };
+}
+
+/* ===================== COD DE PARTAJARE ===================== */
+// Doar litere, cifre și cratime, ca să treacă prin hash.
+function maskOf(list, src) { let m = 0n; list.forEach(k => { const i = src.findIndex(x => x[0] === k); if (i >= 0) m |= 1n << BigInt(i); }); return m.toString(36); }
+function listOf(code, src) { let m = 0n; try { for (const ch of code) m = m * 36n + BigInt(parseInt(ch, 36)); } catch (e) { return []; } return src.filter((_, i) => (m >> BigInt(i)) & 1n).map(x => x[0]); }
+function encode(st) {
+  const dm = st.deals.reduce((m, i) => m | (1 << i), 0).toString(36);
+  return ["r", st.ans.join(""), maskOf(st.organs, ORGANS), maskOf(st.acts, ACTS), dm, st.duels.join("") || "x"].join("-");
+}
+function decode(h) {
+  const parts = h.split("-");
+  if (parts[0] !== "r" || parts.length !== 6 || parts[1].length !== QUESTIONS.length || !/^[1-5]+$/.test(parts[1])) return null;
+  const st = fresh();
+  st.ans = parts[1].split("").map(Number);
+  st.organs = listOf(parts[2], ORGANS);
+  st.acts = listOf(parts[3], ACTS);
+  const dm = parseInt(parts[4], 36) || 0;
+  st.deals = DEALS.map((_, i) => i).filter(i => dm & (1 << i));
+  st.duels = parts[5] === "x" ? [] : parts[5].split("").map(Number).filter(n => n === 0 || n === 1);
+  st.step = "results";
+  return st;
+}
+
+/* ===================== RANDARE ===================== */
+const app = document.getElementById("app");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const TOTAL_STEPS = QUESTIONS.length + 3 + N_DUELS;
+
+function progressBar(done, label) {
+  const pct = Math.round(100 * done / TOTAL_STEPS);
+  return `<div class="progress"><div class="progress-row"><span class="eyebrow">${esc(label)}</span><span class="mono muted">${pct}%</span></div><div class="bar"><i style="width:${pct}%"></i></div></div>`;
+}
+
+function render() {
+  save();
+  const f = { intro, q: question, organs: () => multi("organs"), acts: () => multi("acts"), deals: () => multi("deals"), duel, results }[S.step];
+  app.innerHTML = f();
+  bind();
+  if (S.step !== "intro") window.scrollTo({ top: 0 });
+}
+
+function intro() {
+  const saved = loadSaved();
+  const canResume = saved && saved.step !== "intro" && saved.step !== "results";
+  return `<section class="screen">
+    <p class="eyebrow">Pentru absolvenți și rezidenți indeciși</p>
+    <h1>Ce specialitate ți se potrivește la rezidențiat?</h1>
+    <p class="intro-lead">Răspunzi la ${QUESTIONS.length} afirmații despre cum îți place să lucrezi, alegi ce te atrage și ce nu ai accepta, apoi compari zile de lucru fără să vezi numele specialităților. La final primești un clasament al celor ${SPECS.length} specialități.</p>
+    <div class="facts">
+      <div><b class="mono">${SPECS.length}</b><span>specialități medicale evaluate</span></div>
+      <div><b class="mono">${TOTAL_STEPS}</b><span>pași, cam 8 minute</span></div>
+      <div><b class="mono">${DIMS.length}</b><span>dimensiuni ale profilului tău</span></div>
+    </div>
+    <ol class="steps">
+      <li><span><b>Afirmații.</b> Cât de mult te descrie fiecare, de la 1 la 5.</span></li>
+      <li><span><b>Interese.</b> Organele și activitățile care te atrag.</span></li>
+      <li><span><b>Criterii eliminatorii.</b> Ce nu ai face niciodată. Specialitățile care le încalcă sunt scoase din clasament, oricât de bine s-ar potrivi altfel.</span></li>
+      <li><span><b>Departajare oarbă.</b> Primele patru specialități se înfruntă două câte două prin descrieri ale unei zile obișnuite, fără nume.</span></li>
+    </ol>
+    ${canResume ? `<div class="resume"><span>Ai un test început, la pasul ${stepIndex(saved) + 1} din ${TOTAL_STEPS}.</span><button class="btn" id="resumeBtn" type="button">Continuă de unde ai rămas</button></div>` : ""}
+    <div class="actions"><button class="btn primary" id="startBtn" type="button">Începe testul</button></div>
+  </section>`;
+}
+
+function stepIndex(st) {
+  if (st.step === "q") return st.qi;
+  if (st.step === "organs") return QUESTIONS.length;
+  if (st.step === "acts") return QUESTIONS.length + 1;
+  if (st.step === "deals") return QUESTIONS.length + 2;
+  if (st.step === "duel") return QUESTIONS.length + 3 + st.di;
+  return 0;
+}
+
+function question() {
+  const q = QUESTIONS[S.qi], a = S.ans[S.qi];
+  return `<section class="screen">
+    ${progressBar(S.qi, `${q.sec} · ${S.qi + 1} din ${QUESTIONS.length}`)}
+    <div class="qcard">
+      <p class="qtext">${esc(q.t)}</p>
+      <div class="likert" role="group" aria-label="Cât de mult te descrie">
+        ${LIKERT.map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${a == v}"><b>${v}</b>${l}</button>`).join("")}
+      </div>
+    </div>
+    <div class="qnav">
+      <button class="btn ghost" id="backBtn" type="button" ${S.qi === 0 ? "disabled" : ""}>← Înapoi</button>
+      <span class="hint">Poți folosi tastele 1–5</span>
+      ${a ? `<button class="btn" id="nextBtn" type="button">Mai departe →</button>` : `<span></span>`}
+    </div>
+  </section>`;
+}
+
+const MULTI = {
+  organs: { src: ORGANS, title: "Ce te fascinează în corpul uman?", sub: "Alege oricâte. Dacă nu alegi nimic, organele nu influențează scorul.", label: "Interese · organe", idx: 0 },
+  acts: { src: ACTS, title: "Ce activități te atrag?", sub: "Alege oricâte. Fiecare potrivire adaugă puncte specialităților care le fac.", label: "Interese · activități", idx: 1 },
+  deals: { src: DEALS.map((d, i) => [i, d[0]]), title: "Ce nu ai accepta în niciun caz?", sub: "Fiecare alegere elimină complet specialitățile care o implică. Alege doar ce chiar nu ai face.", label: "Criterii eliminatorii", idx: 2, no: true },
+};
+function multi(kind) {
+  const m = MULTI[kind], sel = S[kind];
+  return `<section class="screen">
+    ${progressBar(QUESTIONS.length + m.idx, m.label)}
+    <div class="qcard">
+      <div style="display:grid;gap:6px"><p class="qtext">${m.title}</p><p class="muted">${m.sub}</p></div>
+      <div class="chips">${m.src.map(([k, l]) => `<button type="button" class="chip${m.no ? " no" : ""}" data-k="${k}" aria-pressed="${sel.includes(k)}">${esc(l)}</button>`).join("")}</div>
+      ${kind === "deals" ? `<p class="mono muted" id="dealCount">${dealNote()}</p>` : ""}
+    </div>
+    <div class="qnav">
+      <button class="btn ghost" id="backBtn" type="button">← Înapoi</button>
+      <button class="btn primary" id="nextBtn" type="button">${sel.length ? "Mai departe →" : "Niciuna, mai departe →"}</button>
+    </div>
+  </section>`;
+}
+function dealNote() {
+  const left = SPECS.filter(s => !S.deals.some(di => DEALS[di][1](s))).length;
+  return `Rămân ${left} din ${SPECS.length} specialități.`;
+}
+
+function duel() {
+  const ranked = rankEligible(S);
+  const pairs = duelPairs(ranked);
+  if (S.di >= pairs.length) { S.step = "results"; return results(); }
+  const [a, b] = pairs[S.di].map(id => SPECS[id]);
+  const flip = (S.di % 2) === 1; // alternează poziția ca să nu favorizeze stânga
+  const left = flip ? b : a, right = flip ? a : b;
+  return `<section class="screen">
+    ${progressBar(QUESTIONS.length + 3 + S.di, `Departajare oarbă · ${S.di + 1} din ${pairs.length}`)}
+    <div style="display:grid;gap:6px"><h2>Ce zi ai prefera să trăiești?</h2><p class="muted">Numele specialităților sunt ascunse. Alege după instinct.</p></div>
+    <div class="duel">
+      <button type="button" class="day" data-id="${left.id}"><span class="eyebrow">Ziua A</span><p>${esc(left.day)}</p></button>
+      <button type="button" class="day" data-id="${right.id}"><span class="eyebrow">Ziua B</span><p>${esc(right.day)}</p></button>
+    </div>
+    <div class="qnav"><button class="btn ghost" id="backBtn" type="button">← Înapoi</button><span></span></div>
+  </section>`;
+}
+
+function verdictOf(ok) {
+  if (ok.length < 2) return ["Un singur candidat", false];
+  const gap = (ok[0].fin - ok[1].fin) * 100;
+  if (gap >= 4) return ["Câștigător clar", false];
+  if (gap >= 1.5) return ["Avantaj moderat față de locul 2", false];
+  return ["Aproape la egalitate cu locul 2", true];
+}
+
+function results() {
+  const { ok, ex, p } = finalResults(S);
+  if (!ok.length) return `<section class="screen"><h2>Ai eliminat toate specialitățile</h2><p>Criteriile eliminatorii alese exclud toate cele ${SPECS.length} specialități. Întoarce-te și renunță la unul dintre ele.</p><div class="actions"><button class="btn primary" id="toDeals" type="button">Modifică criteriile</button></div></section>`;
+  const top = ok.slice(0, 5);
+  const [vText, vClose] = verdictOf(ok);
+  const code = encode(S);
+  return `<section class="screen">
+    <div class="verdict">
+      <p class="eyebrow">Rezultatul tău</p>
+      <h1>${esc(top[0].s.n)}</h1>
+      <span class="pill${vClose ? " close" : ""}">${vText}</span>
+      <p class="muted">${vClose ? `Primele două sunt foarte apropiate. Un stagiu sau o gardă în ambele te poate ajuta să decizi.` : `Potrivirea este calculată din profilul tău pe ${DIMS.length} dimensiuni, din interese și din departajarea oarbă.`}</p>
+    </div>
+
+    <ol class="opts">${top.map((r, i) => optCard(r, i)).join("")}</ol>
+
+    <div class="actions">
+      <button class="btn primary" id="shareBtn" type="button">Copiază link-ul rezultatului</button>
+      <button class="btn" id="restartBtn" type="button">Refă testul</button>
+    </div>
+    <p class="toast" id="toast" aria-live="polite"></p>
+    <input class="copybox" id="copybox" readonly hidden value="">
+
+    <details>
+      <summary>Profilul tău pe ${DIMS.length} dimensiuni</summary>
+      <div class="profile">${DIMS.map(([k, label, lo, hi]) => `<div class="prow"><span>${esc(lo)}</span><div class="ptrack" title="${esc(label)}"><i style="left:${(p[k].pref / 4 * 100).toFixed(1)}%"></i></div><span>${esc(hi)}</span></div>`).join("")}</div>
+    </details>
+
+    <details>
+      <summary>Toate specialitățile (${ok.length})</summary>
+      <div class="table-wrap"><table>
+        <thead><tr><th>#</th><th>Specialitate</th><th>Potrivire</th><th>Ani</th></tr></thead>
+        <tbody>${ok.map((r, i) => `<tr><td class="num">${i + 1}</td><td>${esc(r.s.n)}</td><td class="num">${pct(r.fin)}%</td><td class="num">${r.s.y}</td></tr>`).join("")}</tbody>
+      </table></div>
+    </details>
+
+    ${ex.length ? `<details>
+      <summary>Eliminate de criteriile tale (${ex.length})</summary>
+      <div class="table-wrap"><table class="excluded">
+        <thead><tr><th>Specialitate</th><th>Motiv</th><th>Scor fără filtru</th></tr></thead>
+        <tbody>${ex.map(r => `<tr><td>${esc(r.s.n)}</td><td>${esc(r.ex.join(", "))}</td><td class="num">${pct(r.raw)}%</td></tr>`).join("")}</tbody>
+      </table></div>
+    </details>` : ""}
+
+    <div class="note">
+      <p><b>Cât de precis e testul?</b> Nicio serie de întrebări nu poate garanta 100% că ai ales corect, pentru că preferințele tale se schimbă cu stagiile și experiența. Ce garantează simulatorul: o specialitate care încalcă un criteriu eliminatoriu ales de tine nu apare niciodată în clasament, iar fiecare scor e explicat prin dimensiunile tale.</p>
+      <p>Durata rezidențiatului este orientativă. Verifică durata oficială și numărul de locuri pe rezidentiat.ms.ro înainte de alegere.</p>
+      <p class="mono">Cod rezultat: ${esc(code)}</p>
+    </div>
+  </section>`;
+}
+const pct = x => Math.round(Math.max(0, x) * 100);
+
+function optCard(r, i) {
+  const good = r.good.map(f => `<li>${esc(cap(f.text))}</li>`);
+  if (r.om) good.push(`<li>Lucrează cu ${r.om === 1 ? "un organ" : r.om + " organe"} care te fascinează</li>`);
+  if (r.am) good.push(`<li>Include ${r.am === 1 ? "o activitate" : r.am + " activități"} care te atrag</li>`);
+  if (r.wins) good.push(`<li>Ai ales-o ${r.wins === 1 ? "o dată" : "de " + r.wins + " ori"} în departajarea oarbă</li>`);
+  const bad = r.bad.map(f => `<li class="minus">${esc(DIMS.find(d => d[0] === f.k)[1])}: ${r.s.v[f.k]}/4 aici, dar tu ${esc(f.text)}</li>`);
+  return `<li class="opt${i === 0 ? " first" : ""}">
+    <span class="rank">${i + 1}</span>
+    <div class="opt-body">
+      <div class="opt-head"><h3>${esc(r.s.n)}</h3><span class="score">${pct(r.fin)}%</span></div>
+      <div class="meter"><i style="width:${pct(r.fin)}%"></i></div>
+      <p>${esc(r.s.d)}</p>
+      <ul class="why">${good.concat(bad).join("")}</ul>
+      <p class="meta">Rezidențiat ~${r.s.y} ani</p>
+    </div>
+  </li>`;
+}
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+/* ===================== EVENIMENTE ===================== */
+function go(step) { S.step = step; render(); }
+function answer(v) {
+  S.ans[S.qi] = v;
+  if (S.qi < QUESTIONS.length - 1) { S.qi++; render(); } else go("organs");
+}
+function back() {
+  if (S.step === "q") { if (S.qi > 0) S.qi--; render(); }
+  else if (S.step === "organs") { S.qi = QUESTIONS.length - 1; go("q"); }
+  else if (S.step === "acts") go("organs");
+  else if (S.step === "deals") go("acts");
+  else if (S.step === "duel") { if (S.di > 0) { S.di--; S.duels.length = S.di; render(); } else go("deals"); }
+}
+
+function bind() {
+  const $ = id => document.getElementById(id);
+  $("startBtn")?.addEventListener("click", () => { S = fresh(); S.step = "q"; history.replaceState(null, "", location.pathname + location.search); render(); });
+  $("resumeBtn")?.addEventListener("click", () => { S = loadSaved(); render(); });
+  $("backBtn")?.addEventListener("click", back);
+  $("restartBtn")?.addEventListener("click", () => { S = fresh(); history.replaceState(null, "", location.pathname + location.search); render(); });
+  $("toDeals")?.addEventListener("click", () => go("deals"));
+
+  if (S.step === "q") {
+    app.querySelectorAll(".likert button").forEach(b => b.addEventListener("click", () => answer(+b.dataset.v)));
+    $("nextBtn")?.addEventListener("click", () => answer(S.ans[S.qi]));
+  }
+  if (MULTI[S.step]) {
+    const kind = S.step;
+    app.querySelectorAll(".chip").forEach(b => b.addEventListener("click", () => {
+      const k = kind === "deals" ? +b.dataset.k : b.dataset.k;
+      const arr = S[kind], i = arr.indexOf(k);
+      i >= 0 ? arr.splice(i, 1) : arr.push(k);
+      b.setAttribute("aria-pressed", i < 0);
+      $("nextBtn").textContent = arr.length ? "Mai departe →" : "Niciuna, mai departe →";
+      if (kind === "deals") $("dealCount").textContent = dealNote();
+      save();
+    }));
+    $("nextBtn").addEventListener("click", () => {
+      if (kind === "organs") go("acts");
+      else if (kind === "acts") go("deals");
+      else {
+        if (!rankEligible(S).length) { go("results"); return; }
+        S.di = 0; S.duels = []; go("duel");
+      }
+    });
+  }
+  if (S.step === "duel") {
+    const pairs = duelPairs(rankEligible(S));
+    app.querySelectorAll(".day").forEach(b => b.addEventListener("click", () => {
+      S.duels[S.di] = +b.dataset.id === pairs[S.di][0] ? 0 : 1;
+      S.di++;
+      if (S.di >= pairs.length) { setHash(); go("results"); } else render();
+    }));
+  }
+  if (S.step === "results") {
+    setHash();
+    $("shareBtn")?.addEventListener("click", () => {
+      const url = location.href;
+      const done = () => { $("toast").textContent = "Link copiat. Trimite-l prietenilor ca să vadă rezultatul tău."; };
+      const fallback = () => { const c = $("copybox"); c.hidden = false; c.value = url; c.select(); $("toast").textContent = "Copiază link-ul de mai jos."; };
+      try { navigator.clipboard.writeText(url).then(done, fallback); } catch (e) { fallback(); }
+    });
+  }
+}
+function setHash() { const h = "#" + encode(S); if (location.hash !== h) history.replaceState(null, "", h); }
+
+document.getElementById("homeBtn").addEventListener("click", () => { S.step = "intro"; history.replaceState(null, "", location.pathname + location.search); render(); });
+document.addEventListener("keydown", e => {
+  if (S.step === "q" && /^[1-5]$/.test(e.key) && !e.metaKey && !e.ctrlKey) answer(+e.key);
+});
+function fromHash() {
+  const h = location.hash.slice(1);
+  const st = h && decode(h);
+  if (st) { S = st; render(); return true; }
+  return false;
+}
+window.addEventListener("hashchange", fromHash);
+if (!fromHash()) { const sv = loadSaved(); if (sv && sv.step === "results") S = sv; render(); }
+</script>
+</body>
+</html>
