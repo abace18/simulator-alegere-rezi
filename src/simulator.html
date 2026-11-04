@@ -193,8 +193,8 @@ td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; whit
 .aptres { display: grid; gap: 10px; }
 .review ol { display: grid; gap: 16px; padding-left: 20px; margin: 12px 0 0; }
 .review li { display: grid; gap: 4px; font-size: 0.92rem; }
-.rv-ok b { color: var(--accent); }
-.rv-mine b { color: var(--warn); }
+.review b { color: var(--accent); }
+.styleblock { display: grid; gap: 10px; }
 .aptgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 20px; }
 .aptrow { font-size: 0.92rem; }
 
@@ -593,9 +593,30 @@ const APTS = [
   { k: "mem", n: "Memorie de lucru", d: "Cifrele apar pe rând. Reține șirul și scrie-l înapoi. Șirul crește până greșești de două ori la aceeași lungime.", w: "ATI, medicină internă, urgențe" },
   { k: "calc", n: "Calcul rapid", d: "5 calcule simple, cu numere rotunde: doză, ritm de perfuzie, comprimate. Alegi răspunsul din 4 variante, fără calculator. 30 de secunde fiecare.", w: "pediatrie, neonatologie, ATI" },
   { k: "reac", n: "Control sub presiune", d: "Apasă culoarea cu care e scris cuvântul, nu ce scrie. 16 itemi, 2,5 secunde fiecare. Dacă ai discromatopsie, sari peste acest test.", w: "urgențe, ATI, specialități acute" },
-  { k: "emp", n: "Judecată situațională", d: "7 dileme, la spital și în viața de zi cu zi. Nu există variantă evident greșită: contează ce alegi să faci primul.", w: "psihiatrie, medicină de familie, pediatrie, oncologie" },
+  { k: "emp", n: "Stil de decizie", style: true, d: "7 dileme, la spital și în viața de zi cu zi. Nu există răspunsuri corecte sau greșite: fiecare variantă arată alt mod de a gândi.", w: "fiecare stil se potrivește altor specialități" },
 ];
-const APT_W = 0.15;
+const APT_W = 0.15, STYLE_W = 0.25;
+const STYLES = [
+  { k: "rel", n: "Relațional", d: "Pornești de la omul din fața ta: ce simte, ce vrea, ce îl îngrijorează. Construiești încrederea înainte de soluție.", fit: "psihiatrie, medicină de familie, pediatrie, oncologie, geriatrie" },
+  { k: "dec", n: "Decisiv", d: "Alegi repede o direcție clară și îți asumi decizia. Preferi acțiunea unei analize lungi.", fit: "urgențe, ATI, specialități chirurgicale" },
+  { k: "ana", n: "Analitic", d: "Cauți date, mecanisme și reguli înainte să decizi. Vrei argumente, nu impresii.", fit: "medicină internă, neurologie, hematologie, specialități paraclinice" },
+  { k: "pra", n: "Pragmatic", d: "Cauți soluția care funcționează în condițiile date, cu plase de siguranță. Accepți compromisul.", fit: "medicină de familie, specialități de ambulator, medicină internă" },
+];
+const styleReq = s => { const v = s.v; return [(v.psih + v.cont + v.contact) / 12, (v.acut + v.chir + v.grav) / 12, (v.diag + v.lab + v.vizual) / 12, (2 * v.larg + v.stil) / 12]; };
+const SREQ = SPECS.map(styleReq);
+function styleShares(st) {
+  if (!st.style || !st.style.length) return null;
+  const c = [0, 0, 0, 0]; st.style.forEach(k => c[k]++);
+  return c.map(x => x / st.style.length);
+}
+function styleAdjust(st) {
+  const sh = styleShares(st);
+  if (!sh) return SPECS.map(() => 0);
+  // fiecare specialitate: cât de mult seamănă stilurile ei cu ale tale, centrat pe medie
+  const fits = SREQ.map(r => { const tot = r.reduce((a, b) => a + b, 0) || 1; return r.reduce((t, x, k) => t + sh[k] * x / tot, 0); });
+  const mean = fits.reduce((a, b) => a + b, 0) / fits.length;
+  return fits.map(f => STYLE_W * (f - mean));
+}
 // Cât cere fiecare specialitate din fiecare aptitudine (0–1), derivat din profilul ei
 function aptReq(s) {
   const v = s.v;
@@ -603,7 +624,7 @@ function aptReq(s) {
     mem: (v.diag + v.acut + v.grav) / 12, calc: (v.acut + v.copii + v.tech) / 12, reac: v.acut / 4, emp: (2 * v.psih + v.contact) / 12 };
 }
 const REQ = SPECS.map(aptReq);
-function aptMeasured(st) { return APTS.map((a, i) => ({ ...a, i, sc: st.apt[i] })).filter(a => typeof a.sc === "number" && a.sc >= 0); }
+function aptMeasured(st) { return APTS.map((a, i) => ({ ...a, i, sc: st.apt[i] })).filter(a => !a.style && typeof a.sc === "number" && a.sc >= 0); }
 function aptAdjust(st) {
   const m = aptMeasured(st);
   if (!m.length) return SPECS.map(() => ({ adj: 0, gap: null }));
@@ -803,61 +824,53 @@ const TESTS = {
   },
 
   emp(area, done) {
-    // Toate variantele sunt plauzibile; scorurile reflectă prioritizarea, nu „binele” evident.
+    // Fiecare variantă e un stil, în ordinea: relațional, decisiv, analitic, pragmatic. Nu există variantă corectă.
     const ITEMS = [
       ["Un pacient cu diabet nu-și mai face insulina de două luni. Îți spune calm că a citit că îi face rău și vrea să încerce doar cu dietă.", [
-        ["Îl întreb ce anume a citit și ce îl îngrijorează, înainte să-i explic riscurile.", 1],
-        ["Îi explic clar, cu cifre, ce riscă dacă oprește insulina și îi cer să o reia de azi.", .5],
-        ["Accept două săptămâni de dietă, cu glicemii zilnice și control la final.", .3],
-        ["Îl trimit la un diabetolog pentru o a doua opinie.", .3]],
-        "Fără să afli de ce a oprit, orice explicație riscă să nu ajungă la el. Informația corectă vine imediat după, nu în locul întrebării."],
+        "Îl întreb ce a citit și ce îl îngrijorează, apoi discutăm.",
+        "Îi spun clar că trebuie să reia insulina de azi și de ce.",
+        "Îi arăt valorile lui și ce spun studiile despre dieta singură.",
+        "Accept două săptămâni de dietă, cu glicemii zilnice și control."]],
       ["Ești singur de gardă. Asistenta îți spune că pacientul din salonul 3 „nu arată bine”, dar nu știe să spună exact ce are. În același timp sosește o internare nouă din UPU, stabilă.", [
-        ["Merg întâi la salonul 3 și văd pacientul cu ochii mei.", 1],
-        ["Cer la telefon funcțiile vitale ale pacientului din salonul 3 și apoi decid.", .7],
-        ["Preiau internarea și o rog pe asistentă să mă cheme dacă pacientul se agravează.", .2],
-        ["Îl rog pe medicul de gardă de la altă secție să treacă pe la salonul 3.", .3]],
-        "Îngrijorarea vagă a unei asistente cu experiență e un semnal clinic. Pacientul stabil poate aștepta câteva minute, deteriorarea neobservată nu poate. Funcțiile vitale la telefon sunt un compromis bun, dar pot fi normale la un pacient care se agravează."],
+        "O întreb pe asistentă ce anume a observat și ce o îngrijorează.",
+        "Las internarea și merg imediat la pacientul din salonul 3.",
+        "Cer vitalele și glicemia pacientului din salonul 3, apoi decid.",
+        "Preiau internarea pe scurt și trec la salonul 3 imediat după."]],
       ["Un coleg rezident, prieten apropiat, a venit de două ori la tură mirosind a alcool. Nu a greșit nimic până acum.", [
-        ["Vorbesc cu el azi, îi cer să nu lucreze așa cu pacienți și îi spun că data viitoare anunț.", 1],
-        ["Îl anunț direct pe coordonatorul de rezidențiat, fără să vorbesc întâi cu el.", .6],
-        ["Îi sugerez discret să meargă la un psiholog, fără să implic pe nimeni.", .3],
-        ["Mai aștept, ca să nu-l acuz pe nedrept pe baza unui miros.", .1]],
-        "Siguranța pacienților e prioritară, dar o primă discuție directă e corectă și eficientă dacă stabilește o limită clară. Raportarea directă e defensabilă, doar că sare peste o etapă utilă. Așteptarea expune pacienții la risc."],
+        "Vorbesc cu el între patru ochi, să înțeleg ce se întâmplă.",
+        "Îi cer să nu lucreze azi cu pacienți și anunț coordonatorul.",
+        "Verific ce procedură prevede regulamentul spitalului pentru asta.",
+        "Îi spun ce am observat și că data viitoare voi anunța."]],
       ["O pacientă de 30 de ani cere insistent antibiotic pentru o viroză respiratorie. Spune că doar asta o ajută și că altfel merge la alt medic.", [
-        ["O întreb ce speră să rezolve antibioticul și îi propun un plan pentru simptome, cu reevaluare dacă nu se ameliorează.", 1],
-        ["Îi dau o rețetă de rezervă, pe care să o folosească doar dacă după câteva zile e mai rău.", .7],
-        ["Îi explic rezistența la antibiotice și refuz ferm.", .4],
-        ["Îi prescriu ca să păstrez relația; o viroză nu merită o dispută.", .1]],
-        "Rețeta amânată e o strategie validată și reduce consumul de antibiotice, deci nu e o greșeală. Totuși, cel mai bun început e să afli ce așteaptă de fapt pacienta. Refuzul ferm e corect medical, dar o pierde adesea."],
+        "O întreb ce speră să rezolve antibioticul și ce o îngrijorează.",
+        "Îi explic pe scurt că nu are nevoie și nu îl prescriu.",
+        "Îi arăt prin ce diferă o viroză de o infecție bacteriană.",
+        "Îi dau o rețetă de rezervă, doar pentru cazul în care se agravează."]],
       ["Șeful de secție îți cere să externezi azi un pacient vârstnic, pentru că e nevoie de pat. Tu crezi că pacientul nu e pregătit, dar nu ai un argument clar, doar o impresie.", [
-        ["Reevaluez pacientul acum și îi spun șefului concret ce mă îngrijorează, chiar dacă e doar o impresie.", 1],
-        ["Îl externez, dar programez control la 48 de ore și explic familiei semnele de alarmă.", .6],
-        ["Refuz să semnez externarea până nu am un argument clar.", .3],
-        ["Îl externez; șeful are mai multă experiență decât mine.", .2]],
-        "O impresie clinică merită verificată și spusă cu voce tare, nu ascunsă sau transformată în blocaj. Externarea cu plasă de siguranță e rezonabilă dacă reevaluarea nu găsește nimic."],
+        "Vorbesc cu pacientul și cu familia, să văd cum se simt ei.",
+        "Îi spun șefului direct că nu îl externez azi.",
+        "Reevaluez pacientul și caut un argument concret în analize.",
+        "Îl externez, cu control la 48 de ore și semne de alarmă explicate."]],
       ["Lucrezi la un proiect în echipă. Un coleg face mult mai puțin decât ceilalți, iar termenul e peste o săptămână.", [
-        ["Îl întreb ce îl blochează și reîmpărțim sarcinile, cu termene clare pentru fiecare.", 1],
-        ["Spun în grup, deschis, că avem nevoie ca toți să contribuie la fel.", .5],
-        ["Fac eu partea lui, ca să predăm la timp, și discut cu el după.", .4],
-        ["Îl anunț pe coordonator că un membru nu contribuie.", .3]],
-        "Problema reală poate fi alta decât lenea: neclaritate, o sarcină prea grea, probleme personale. Discuția directă rezolvă cauza, nu doar simptomul, și păstrează termenul."],
+        "Îl întreb ce îl blochează și dacă are nevoie de ajutor.",
+        "Reîmpart eu sarcinile și stabilesc termene clare pentru toți.",
+        "Fac o listă cu ce a făcut fiecare, ca să avem date, nu impresii.",
+        "Preiau o parte din munca lui, ca să predăm la timp."]],
       ["Un prieten îți cere părerea sinceră despre o afacere în care vrea să-și pună toate economiile. Tu crezi că e o idee proastă.", [
-        ["Îl întreb cum a ajuns la decizie și ce ar face dacă nu merge, ca să cântărească singur riscurile.", 1],
-        ["Îl sfătuiesc să investească doar o parte și să păstreze o rezervă.", .7],
-        ["Îi spun direct că mi se pare o idee proastă și de ce.", .6],
-        ["Îi spun că îl susțin; e decizia lui.", .2]],
-        "Ți-a cerut sinceritate, deci a-l susține necondiționat nu ajută. Întrebările bune îl fac să vadă singur riscurile, iar asta convinge mai des decât un verdict. Investiția parțială e un sfat practic foarte bun."],
+        "Îl întreb ce înseamnă proiectul pentru el și ce îl motivează.",
+        "Îi spun direct că mi se pare o idee proastă și de ce.",
+        "Îi cer cifrele și facem împreună un scenariu pesimist.",
+        "Îl sfătuiesc să investească doar o parte și să păstreze o rezervă."]],
     ];
-    let i = 0, total = 0;
-    EMP_REVIEW = [];
+    let i = 0;
+    S.style = []; EMP_REVIEW = [];
     function item() {
-      if (i >= ITEMS.length) return done(clamp(total / ITEMS.length));
-      const [q, opts, why] = ITEMS[i], sh = shuffle(opts);
-      area.innerHTML = `<p class="calc-q">${esc(q)}</p><p class="muted">Toate variantele pot fi apărate. Alege ce ai face primul.</p><div class="sjt">${sh.map((o, j) => `<button type="button" class="day" data-j="${j}"><p>${esc(o[0])}</p></button>`).join("")}</div><p class="mono muted">Situația ${i + 1} din ${ITEMS.length}</p>`;
+      if (i >= ITEMS.length) return done(1);
+      const [q, opts] = ITEMS[i], sh = shuffle(opts.map((t, k) => [t, k]));
+      area.innerHTML = `<p class="calc-q">${esc(q)}</p><p class="muted">Nu există răspuns corect. Alege ce ai face tu primul.</p><div class="sjt">${sh.map((o, j) => `<button type="button" class="day" data-j="${j}"><p>${esc(o[0])}</p></button>`).join("")}</div><p class="mono muted">Situația ${i + 1} din ${ITEMS.length}</p>`;
       area.querySelectorAll(".sjt button").forEach(b => b.addEventListener("click", () => {
-        const o = sh[+b.dataset.j];
-        total += o[1];
-        EMP_REVIEW.push({ q, mine: o[0], sc: o[1], best: opts[0][0], why });
+        const [t, k] = sh[+b.dataset.j];
+        S.style.push(k); EMP_REVIEW.push({ q, mine: t, k });
         i++; item();
       }));
     }
@@ -869,12 +882,12 @@ function aptScreen() {
   const t = APTS[S.ti], sc = S.apt[S.ti];
   let body = "";
   if (APT_PHASE === "intro") body = `<p>${esc(t.d)}</p><p class="meta">Contează mai ales pentru: ${esc(t.w)}</p>`;
-  else if (APT_PHASE === "done") body = `<div class="aptdone"><span class="eyebrow">Scorul tău</span><b class="mono">${Math.round(sc * 100)}<small>/100</small></b><p class="muted">Contează mai ales pentru: ${esc(t.w)}</p></div>${t.k === "emp" && EMP_REVIEW.length ? empReview() : ""}`;
+  else if (APT_PHASE === "done") body = t.style ? styleBlock(true) : `<div class="aptdone"><span class="eyebrow">Scorul tău</span><b class="mono">${Math.round(sc * 100)}<small>/100</small></b><p class="muted">Contează mai ales pentru: ${esc(t.w)}</p></div>`;
   return `<section class="screen">
     ${treeTrail(S, "apt")}
     ${progressBar(`Nivelul 1b · Aptitudini · testul ${S.ti + 1} din ${APTS.length}`)}
     <div class="qcard">
-      <div style="display:grid;gap:4px"><p class="eyebrow">Test de aptitudine</p><p class="qtext">${esc(t.n)}</p></div>
+      <div style="display:grid;gap:4px"><p class="eyebrow">${t.style ? "Profil, fără răspunsuri corecte" : "Test de aptitudine"}</p><p class="qtext">${esc(t.n)}</p></div>
       <div id="testArea" class="test-area">${body}</div>
     </div>
     <div class="qnav">
@@ -884,12 +897,19 @@ function aptScreen() {
     </div>
   </section>`;
 }
-function empReview() {
-  return `<details class="review"><summary>Vezi cum ai răspuns și varianta recomandată</summary><ol>${EMP_REVIEW.map(r => `<li>
-    <p>${esc(r.q)}</p>
-    <p class="${r.sc >= 1 ? "rv-ok" : "rv-mine"}"><b>Tu:</b> ${esc(r.mine)}</p>
-    ${r.sc >= 1 ? "" : `<p class="rv-ok"><b>Recomandat:</b> ${esc(r.best)}</p>`}
-    <p class="muted">${esc(r.why)}</p></li>`).join("")}</ol></details>`;
+function styleBlock(withReview) {
+  const sh = styleShares(S);
+  if (!sh) return "";
+  const order = STYLES.map((x, k) => ({ ...x, p: sh[k] })).sort((a, b) => b.p - a.p), top = order[0];
+  const second = order[1].p === top.p ? order[1] : null;
+  return `<div class="styleblock">
+    <span class="eyebrow">Stilul tău de decizie</span>
+    <p class="qtext">${esc(top.n)}${second ? " și " + esc(second.n.toLowerCase()) : ""}</p>
+    <p>${esc(top.d)}${second ? " " + esc(second.d) : ""}</p>
+    <div class="aptgrid">${STYLES.map((x, k) => `<div class="aptrow"><div class="opt-head"><span>${esc(x.n)}</span><span class="mono">${Math.round(sh[k] * 100)}%</span></div><div class="meter"><i style="width:${Math.round(sh[k] * 100)}%"></i></div></div>`).join("")}</div>
+    <p class="meta">Stilul ${esc(top.n.toLowerCase())} se întâlnește des în: ${esc(top.fit)}. Niciun stil nu e mai bun decât altul.</p>
+    ${withReview && EMP_REVIEW.length ? `<details class="review"><summary>Vezi ce ai ales în fiecare situație</summary><ol>${EMP_REVIEW.map(r => `<li><p>${esc(r.q)}</p><p><b>${esc(STYLES[r.k].n)}:</b> ${esc(r.mine)}</p></li>`).join("")}</ol></details>` : ""}
+  </div>`;
 }
 function nextApt() {
   APT_PHASE = "intro";
@@ -963,6 +983,8 @@ function drawCard(res) {
     });
     y += Math.ceil(m.length / 2) * 54;
   }
+  const ssh = styleShares(S);
+  if (ssh) { const k = ssh.indexOf(Math.max(...ssh)); y += 14; x.fillStyle = EXP.muted; x.font = F.m(500, 22); x.fillText("STIL DE DECIZIE", P, y); x.fillStyle = EXP.ink; x.font = F.d(700, 34); x.fillText(`${STYLES[k].n} · ${Math.round(ssh[k] * 100)}%`, P, y + 34); }
   x.fillStyle = EXP.muted; x.font = F.b(400, 22);
   const path = "Traseu: Triaj → " + (S.br.map(k => BR(k).n).join(" + ") || "—") + " → Departajare oarbă";
   wrapLines(x, path, W - 2 * P).slice(0, 2).forEach((l, j) => x.fillText(l, P, H - P - 62 + j * 30));
@@ -1015,6 +1037,20 @@ function drawReport(res) {
       x.fillStyle = EXP.line; x.fillRect(P, y + 34, W - 2 * P, 8); x.fillStyle = EXP.accent; x.fillRect(P, y + 34, (W - 2 * P) * a.sc, 8);
       y += 50; text("Contează pentru: " + a.w, F.b(400, 18), EXP.muted, 26); y += 8;
     });
+  }
+  const sh = styleShares(S);
+  if (sh) {
+    label("Stilul tău de decizie");
+    const k = sh.indexOf(Math.max(...sh));
+    text(`${STYLES[k].n}. ${STYLES[k].d}`, F.b(500, 21), EXP.ink, 32);
+    STYLES.forEach((st, j) => {
+      need(44);
+      x.fillStyle = EXP.ink; x.font = F.b(400, 20); x.fillText(st.n, P, y);
+      x.font = F.m(500, 20); x.textAlign = "right"; x.fillText(Math.round(sh[j] * 100) + "%", W - P, y); x.textAlign = "left";
+      x.fillStyle = EXP.line; x.fillRect(P + 200, y + 10, W - 2 * P - 300, 8); x.fillStyle = EXP.accent; x.fillRect(P + 200, y + 10, (W - 2 * P - 300) * sh[j], 8);
+      y += 40;
+    });
+    text("Niciun stil nu e mai bun decât altul. Stilul cântărește în clasament după cât de des apare în fiecare specialitate.", F.b(400, 18), EXP.muted, 26);
   }
   label("Profilul tău din triaj");
   DIMS.forEach(([k, lab, lo, hi]) => {
@@ -1098,9 +1134,9 @@ async function exportFile(kind, btn, toast) {
 
 /* ===================== STARE ===================== */
 let S = fresh();
-function fresh() { return { step: "intro", qi: 0, ans: Array(QUESTIONS.length).fill(0), deals: [], apt: Array(APTS.length).fill(null), ti: 0, br: [], bi: 0, bans: [], duels: [], di: 0 }; }
-function save() { try { localStorage.setItem("rezi-sim-v4", JSON.stringify(S)); } catch (e) {} }
-function loadSaved() { try { const x = JSON.parse(localStorage.getItem("rezi-sim-v4")); if (x && x.ans && x.ans.length === QUESTIONS.length && x.apt) return x; } catch (e) {} return null; }
+function fresh() { return { step: "intro", qi: 0, ans: Array(QUESTIONS.length).fill(0), deals: [], apt: Array(APTS.length).fill(null), style: [], ti: 0, br: [], bi: 0, bans: [], duels: [], di: 0 }; }
+function save() { try { localStorage.setItem("rezi-sim-v5", JSON.stringify(S)); } catch (e) {} }
+function loadSaved() { try { const x = JSON.parse(localStorage.getItem("rezi-sim-v5")); if (x && x.ans && x.ans.length === QUESTIONS.length && x.apt && x.style) return x; } catch (e) {} return null; }
 function queue(st) { return st.br.flatMap(k => BR(k).qs.map(q => ({ ...q, b: k }))); }
 
 /* ===================== SCOR ===================== */
@@ -1130,7 +1166,7 @@ function scoreAll(st) {
     for (const [id, w] of Object.entries(q.boost)) { bnum[id] = (bnum[id] || 0) + c * w; bden[id] = (bden[id] || 0) + Math.abs(w); }
   });
   for (const id in bnum) boost[id] = BRANCH_BOOST * bnum[id] / Math.max(1, bden[id]);
-  const AP = aptAdjust(st);
+  const AP = aptAdjust(st), SA = styleAdjust(st);
   return SPECS.map(s => {
     const ex = st.deals.filter(di => DEALS[di][1](s)).map(di => DEALS[di][2]);
     let num = 0, den = 0;
@@ -1142,8 +1178,8 @@ function scoreAll(st) {
       num += w * (1 - gap / 4); den += w;
       if (str >= 0.4) fits.push({ k, gap, str, text: pref > 2 ? hi : lo });
     });
-    const ap = AP[s.id], base = num / den + ap.adj, bst = boost[s.id] || 0;
-    return { s, base, bst, raw: base + bst, ex, ap,
+    const ap = AP[s.id], sty = SA[s.id], base = num / den + ap.adj + sty, bst = boost[s.id] || 0;
+    return { s, base, bst, raw: base + bst, ex, ap, sty,
       good: fits.filter(f => f.gap <= 1 && Math.abs(s.v[f.k] - MEAN[f.k]) >= 0.9)
         .sort((a, b) => b.str * Math.abs(s.v[b.k] - MEAN[b.k]) - a.str * Math.abs(s.v[a.k] - MEAN[a.k])).slice(0, 3),
       bad: fits.filter(f => f.gap >= 2).sort((a, b) => b.gap * b.str - a.gap * a.str).slice(0, 2) };
@@ -1192,21 +1228,22 @@ function finalResults(st) {
 // Doar litere, cifre și cratime, ca să treacă prin hash.
 function encode(st) {
   const dm = st.deals.reduce((m, i) => m | (1 << i), 0).toString(36);
-  const ap = st.apt.map(a => typeof a === "number" && a >= 0 ? String(Math.round(a * 9)) : "x").join("");
-  return ["u", st.ans.join(""), dm, ap, st.br.join("") || "x", st.bans.join("") || "x", st.duels.join("") || "x"].join("-");
+  const ap = st.apt.map((a, i) => APTS[i].style ? "x" : typeof a === "number" && a >= 0 ? String(Math.round(a * 9)) : "x").join("");
+  return ["v", st.ans.join(""), dm, ap, st.style.join("") || "x", st.br.join("") || "x", st.bans.join("") || "x", st.duels.join("") || "x"].join("-");
 }
 function decode(h) {
   const parts = h.split("-");
-  if (parts[0] !== "u" || parts.length !== 7 || parts[3].length !== APTS.length || parts[1].length !== QUESTIONS.length || !/^[1-5]+$/.test(parts[1])) return null;
+  if (parts[0] !== "v" || parts.length !== 8 || parts[3].length !== APTS.length || parts[1].length !== QUESTIONS.length || !/^[1-5]+$/.test(parts[1])) return null;
   const st = fresh();
   st.ans = parts[1].split("").map(Number);
   const dm = parseInt(parts[2], 36) || 0;
   st.deals = DEALS.map((_, i) => i).filter(i => dm & (1 << i));
   st.apt = parts[3].split("").map(ch => /[0-9]/.test(ch) ? +ch / 9 : -1);
-  st.br = parts[4] === "x" ? [] : [...new Set(parts[4].split(""))].filter(k => BR(k));
-  st.bans = parts[5] === "x" ? [] : parts[5].split("").map(Number);
+  st.style = parts[4] === "x" ? [] : parts[4].split("").map(Number).filter(k => k >= 0 && k <= 3);
+  st.br = parts[5] === "x" ? [] : [...new Set(parts[5].split(""))].filter(k => BR(k));
+  st.bans = parts[6] === "x" ? [] : parts[6].split("").map(Number);
   if (st.bans.length !== queue(st).length || st.bans.some(a => a < 1 || a > 5)) return null;
-  st.duels = parts[6] === "x" ? [] : parts[6].split("").map(Number).filter(n => n === 0 || n === 1);
+  st.duels = parts[7] === "x" ? [] : parts[7].split("").map(Number).filter(n => n === 0 || n === 1);
   st.step = "results";
   return st;
 }
@@ -1255,7 +1292,7 @@ function intro() {
     <ol class="steps">
       <li><span><b>Criterii eliminatorii.</b> Specialitățile care încalcă un criteriu ales de tine sunt scoase din tot arborele.</span></li>
       <li><span><b>Triaj.</b> ${QUESTIONS.length} afirmații despre activitatea clinică pe care ți-o dorești și despre viața ta de zi cu zi.</span></li>
-      <li><span><b>Aptitudini.</b> ${APTS.length} mini-teste cu timp: precizie motorie, rotație mentală, atenție la detalii, memorie, calcul de doză, control sub presiune, judecată situațională. Scorurile cântăresc în clasament.</span></li>
+      <li><span><b>Aptitudini.</b> ${APTS.length - 1} mini-teste cu timp (precizie motorie, rotație mentală, atenție la detalii, memorie, calcul, control sub presiune) și un set de dileme care îți arată stilul de decizie, fără răspunsuri corecte sau greșite.</span></li>
       <li><span><b>Ramura.</b> Vezi spre ce direcție te îndreaptă triajul și poți adăuga sau scoate ramuri.</span></li>
       <li><span><b>Întrebări de ramură.</b> 8–12 afirmații care fac diferența între specialități apropiate, de exemplu oftalmologie și ORL.</span></li>
       <li><span><b>Departajare oarbă.</b> Primele patru specialități comparate două câte două prin zile de lucru, fără nume.</span></li>
@@ -1392,6 +1429,7 @@ function results() {
     <ol class="opts">${top.map((r, i) => optCard(r, i)).join("")}</ol>
 
     ${aptSection()}
+    ${styleBlock(false)}
 
     <div class="actions">
       <button class="btn primary" id="pdfBtn" type="button">Descarcă raportul PDF</button>
@@ -1438,6 +1476,7 @@ function reasonsOf(r) {
   else if (r.bst >= 0.012) good.unshift("Răspunsurile din ramură o susțin");
   else if (r.bst <= -0.015) bad.unshift("Răspunsurile din ramură o defavorizează");
   if (r.ap && r.ap.best && r.ap.adj > 0) good.push(`Scorul tău la „${r.ap.best.n.toLowerCase()}” se potrivește cu ce cere`);
+  if (r.sty >= 0.012) { const sh = styleShares(S), k = sh.indexOf(Math.max(...sh)); good.push(`Se potrivește cu stilul tău de decizie (${STYLES[k].n.toLowerCase()})`); }
   if (r.ap && r.ap.gap) bad.push(`Cere mai mult la „${r.ap.gap.n.toLowerCase()}” decât ai obținut la test`);
   if (r.wins) good.push(`Ai ales-o ${r.wins === 1 ? "o dată" : "de " + r.wins + " ori"} în departajarea oarbă`);
   return good.map(t => ({ t, minus: false })).concat(bad.map(t => ({ t, minus: true })));
@@ -1519,7 +1558,7 @@ function bind() {
       APT_PHASE = "run"; render();
       TESTS[APTS[S.ti].k]($("testArea"), score => { S.apt[S.ti] = score; S.br = []; S.bans = []; S.bi = 0; APT_PHASE = "done"; render(); });
     });
-    $("skipBtn")?.addEventListener("click", () => { S.apt[S.ti] = -1; S.br = []; S.bans = []; S.bi = 0; nextApt(); });
+    $("skipBtn")?.addEventListener("click", () => { S.apt[S.ti] = -1; if (APTS[S.ti].style) S.style = []; S.br = []; S.bans = []; S.bi = 0; nextApt(); });
     $("redoBtn")?.addEventListener("click", () => { APT_PHASE = "intro"; render(); });
     $("nextBtn")?.addEventListener("click", nextApt);
   }
