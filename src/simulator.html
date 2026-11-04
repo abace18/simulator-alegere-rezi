@@ -587,7 +587,7 @@ const APTS = [
   { k: "spat", n: "Rotație mentală", d: "Pentru fiecare formă, alege varianta care e aceeași formă rotită. Celelalte sunt oglindite. 5 itemi, 20 de secunde fiecare.", w: "chirurgie, ortopedie, radiologie" },
   { k: "vis", n: "Atenție la detalii", d: "Găsește caracterul diferit din grilă. 5 runde, 10 secunde fiecare.", w: "dermatologie, anatomie patologică, radiologie" },
   { k: "mem", n: "Memorie de lucru", d: "Cifrele apar pe rând. Reține șirul și scrie-l înapoi. Șirul crește până greșești de două ori la aceeași lungime.", w: "ATI, medicină internă, urgențe" },
-  { k: "calc", n: "Calcul rapid", d: "4 calcule de doză și ritm de perfuzie, fără calculator. 60 de secunde fiecare.", w: "pediatrie, neonatologie, ATI" },
+  { k: "calc", n: "Calcul rapid", d: "5 calcule simple, cu numere rotunde: doză, ritm de perfuzie, comprimate. Alegi răspunsul din 4 variante, fără calculator. 30 de secunde fiecare.", w: "pediatrie, neonatologie, ATI" },
   { k: "reac", n: "Control sub presiune", d: "Apasă culoarea cu care e scris cuvântul, nu ce scrie. 16 itemi, 2,5 secunde fiecare. Dacă ai discromatopsie, sari peste acest test.", w: "urgențe, ATI, specialități acute" },
   { k: "emp", n: "Judecată situațională", d: "5 situații cu oameni. Alege reacția pe care o consideri cea mai potrivită.", w: "psihiatrie, medicină de familie, pediatrie, oncologie" },
 ];
@@ -750,27 +750,25 @@ const TESTS = {
 
   calc(area, done) {
     const gens = [
-      () => { const W = pick([8, 10, 12, 14, 16, 18, 20, 24]), C = pick([120, 160, 250]); return { t: `Copil de ${W} kg. Paracetamol 15 mg/kg pe doză. Sirop de ${C} mg/5 ml. Câți ml administrezi pe doză?`, ans: W * 15 / C * 5, u: "ml" }; },
-      () => { const W = pick([12, 15, 18, 24, 30]), D = pick([30, 45, 60, 90]); return { t: `Pacient de ${W} kg. Doza este ${D} mg/kg/zi, împărțită în 3 prize. Câte mg pe priză?`, ans: W * D / 3, u: "mg" }; },
-      () => { const V = pick([250, 500, 1000]), h = pick([2, 4, 5, 8]); return { t: `Trebuie administrați ${V} ml în ${h} ore. Ce ritm setezi, în ml/oră?`, ans: V / h, u: "ml/oră" }; },
-      () => { const X = pick([10, 30, 50, 70]); return { t: `O fiolă conține 40 mg în 2 ml. Ai nevoie de ${X} mg. Câți ml extragi?`, ans: X / 40 * 2, u: "ml" }; },
+      () => { const W = pick([10, 20, 30, 40]), D = pick([2, 5, 10]); return { t: `Un pacient are ${W} kg. Doza este ${D} mg/kg. Câte mg îi dai?`, ans: W * D, u: "mg" }; },
+      () => { const h = pick([2, 4, 5]), V = h * pick([50, 100]); return { t: `Trebuie să curgă ${V} ml în ${h} ore. Câți ml pe oră?`, ans: V / h, u: "ml/oră" }; },
+      () => { const M = pick([100, 200]), X = M / pick([2, 5]); return { t: `O fiolă are ${M} mg în 10 ml. Ai nevoie de ${X} mg. Câți ml iei?`, ans: X / M * 10, u: "ml" }; },
+      () => { const C = pick([250, 500]), n = pick([2, 3, 4]); return { t: `Un comprimat are ${C} mg. Doza este ${C * n} mg. Câte comprimate dai?`, ans: n, u: "comprimate" }; },
+      () => { const D = pick([300, 600, 900]), n = 3; return { t: `Doza pe zi este ${D} mg, împărțită în ${n} prize egale. Câte mg pe priză?`, ans: D / n, u: "mg" }; },
     ];
     const items = shuffle(gens).map(g => g()); let i = 0, total = 0;
+    const variants = a => { const set = new Set([a]); [a * 2, a / 2, a * 10, a + (a >= 10 ? 10 : 1), a - (a > 10 ? 10 : 1), a * 3].forEach(v => { if (set.size < 4 && v > 0 && Number.isInteger(v)) set.add(v); }); for (let d = 2; set.size < 4; d++) set.add(a + d); return shuffle([...set]); };
     function item() {
       if (i >= items.length) return done(clamp(total / items.length));
-      const it = items[i];
-      area.innerHTML = `<p class="calc-q">${esc(it.t)}</p><form class="answer" id="calcForm"><label for="calcIn">Răspuns (${esc(it.u)})</label><input id="calcIn" inputmode="decimal" autocomplete="off" oninput="this.setCustomValidity('')"><button class="btn primary" type="submit">Verifică</button></form><p class="mono muted">Calculul ${i + 1} din ${items.length}</p>`;
-      timerBar(area, 60000);
-      const t0 = performance.now(), to = T.timeout(() => { i++; item(); }, 60000);
-      const inp = document.getElementById("calcIn"); inp.focus();
-      document.getElementById("calcForm").addEventListener("submit", e => {
-        e.preventDefault();
-        const v = parseFloat(inp.value.replace(",", "."));
-        if (isNaN(v)) { inp.setCustomValidity("Scrie un număr, de exemplu 7,5"); inp.reportValidity(); return; }
+      const it = items[i], opts = variants(it.ans);
+      area.innerHTML = `<p class="calc-q">${esc(it.t)}</p><div class="stroop-btns">${opts.map(v => `<button type="button" class="btn" data-v="${v}">${v} ${esc(it.u)}</button>`).join("")}</div><p class="mono muted">Calculul ${i + 1} din ${items.length}</p>`;
+      timerBar(area, 30000);
+      const t0 = performance.now(), to = T.timeout(() => { i++; item(); }, 30000);
+      area.querySelectorAll(".stroop-btns button").forEach(b => b.addEventListener("click", () => {
         clearTimeout(to);
-        if (Math.abs(v - it.ans) <= Math.max(0.03 * it.ans, 0.1)) total += 0.6 + 0.4 * clamp((60 - (performance.now() - t0) / 1000) / 45);
+        if (+b.dataset.v === it.ans) total += 0.6 + 0.4 * clamp((30 - (performance.now() - t0) / 1000) / 22);
         i++; item();
-      });
+      }));
     }
     item();
   },
