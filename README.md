@@ -1,0 +1,1 @@
+# simulator-alegere-rezi
