@@ -153,6 +153,18 @@ td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; whit
 .note { font-size: 0.9rem; color: var(--muted); display: grid; gap: 8px; border-left: 3px solid var(--line); padding-left: 14px; }
 .copybox { width: 100%; font-family: var(--font-mono); font-size: 0.8rem; padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
 
+/* Arbore și ramuri */
+.trail { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; font-family: var(--font-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.trail li { padding: 4px 8px; border-radius: 4px; border: 1px solid var(--line); color: var(--muted); }
+.trail li.done { color: var(--accent); border-color: var(--accent); }
+.trail li.now { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.branches { display: grid; gap: 10px; }
+.branch { text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: grid; gap: 4px; }
+.branch:hover:not(:disabled) { border-color: var(--accent); }
+.branch[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); background: var(--mark); }
+.branch:disabled { opacity: 0.5; cursor: not-allowed; }
+.branch .meter { margin-block: 4px; }
+
 @media (max-width: 560px) {
   .facts { grid-template-columns: 1fr; }
   .duel { grid-template-columns: 1fr; }
@@ -199,22 +211,6 @@ const DIMS = [
   ["vizual", "Recunoaștere vizuală",     "nu te bazezi pe tipare vizuale",   "ai ochi pentru tipare vizuale"],
   ["varst",  "Vârstnici",                "nu cauți pacienți vârstnici",      "îți place să lucrezi cu vârstnici"],
   ["pop",    "Sănătate publică",         "preferi pacientul individual",     "te interesează sănătatea populației"],
-];
-
-const ORGANS = [
-  ["inima","Patologie cardiacă"],["vase","Patologie vasculară"],["creier","Neuroștiințe: SNC, SNP, neuromuscular"],["plamani","Patologie respiratorie"],
-  ["digestiv","Patologie digestivă și hepatobiliară"],["rinichi","Patologie renală și urologică"],["hormoni","Endocrinologie și metabolism"],
-  ["sange","Hematologie, hemostază"],["imun","Infecțiozitate, imunologie, autoimunitate"],["piele","Patologie cutanată și anexe"],["ochi","Patologie oculară"],["orl","Cap și gât, ORL"],
-  ["oase","Aparat locomotor"],["reproducere","Patologie genitală și a reproducerii"],["psihic","Psihopatologie"],
-  ["cancer","Oncologie solidă și hematologică"],["tot","Patologie multisistemică"],
-];
-
-const ACTS = [
-  ["eco","Ecografie, inclusiv point-of-care"],["endo","Endoscopie: digestivă, bronhoscopie, cistoscopie"],["interv","Cateterism, angioplastie, radiologie intervențională"],
-  ["minv","Chirurgie laparoscopică sau robotică"],["microchir","Microchirurgie și chirurgie sub microscop"],["ventilatie","Ventilație mecanică și monitorizare hemodinamică"],
-  ["nasteri","Asistența la naștere"],["estetic","Proceduri estetice: toxină, filleri, laser"],["sport","Evaluare la efort și leziuni sportive"],["reabilitare","Recuperare neuromotorie și posttraumatică"],
-  ["nutritie","Nutriție clinică"],["genetica","Genetică și genomică clinică"],["microscop","Histopatologie, citologie, microscopie"],["autopsii","Tanatologie și expertize medico-legale"],
-  ["psihoterapie","Psihoterapie"],["epidemii","Supraveghere epidemiologică și vaccinologie"],["management","Management sanitar și politici de sănătate"],["cercetare","Studii clinice și cercetare translațională"],
 ];
 
 const DEALS = [
@@ -396,22 +392,18 @@ const SPECS = RAW.map(([n, y, v, o, a, d, day], i) => {
 // Media fiecărei dimensiuni, ca să arătăm doar motivele caracteristice unei specialități
 const MEAN = {}; DIMS.forEach(([k]) => MEAN[k] = SPECS.reduce((t, s) => t + s.v[k], 0) / SPECS.length);
 
+/* ===================== NIVELUL 1: TRIAJ ===================== */
 const SECTIONS = [
-  ["Activitate procedurală și chirurgicală", [
+  ["Activitate procedurală", [
     ["Mă văd lucrând zilnic în blocul operator, inclusiv în intervenții de 4–6 ore.", {chir:1}],
     ["Manevrele invazive (cateter venos central, puncție lombară, toracocenteză) îmi dau satisfacție, nu doar le tolerez.", {proc:1, chir:.3}],
     ["Prefer ca propria mea intervenție să rezolve problema, în loc să controlez boala prin tratament cronic.", {chir:.6, proc:.6, cont:-.5}],
-    ["Am răbdare pentru gesturi fine sub magnificație: microscop operator, lupe, endoscop.", {proc:.7, chir:.4, vizual:.3}],
-    ["Accept efortul fizic al chirurgiei: ore în picioare, șorț plumbat, intervenții una după alta.", {chir:.7, proc:.4, acut:.2}],
     ["Mă atrage partea tehnică: ecografie, setările ventilatorului, protocoale CT/RMN, dispozitive implantabile.", {tech:1}],
-    ["Identific rapid un pattern pe imagine: o leziune la dermatoscop, un frotiu, un semn radiologic.", {vizual:1}],
-    ["M-aș simți împlinit corelând morfologia (lame, culturi, parametri de laborator) cu clinica, fără să examinez eu pacientul.", {lab:1, contact:-.5}],
   ]],
   ["Acuitate și presiune", [
     ["Mă simt confortabil să conduc o resuscitare sau să stabilizez un pacient instabil hemodinamic.", {acut:1, grav:.3}],
     ["Prefer un ritm în care am timp să consult ghidul și să discut cazul înainte de a decide.", {acut:-1}],
     ["Pot lucra zilnic cu pacienți cu prognostic rezervat și pot anunța decese familiilor fără să mă epuizez.", {grav:1}],
-    ["Mă văd purtând discuții despre limitarea terapiei, îngrijiri paliative și decizii de nonresuscitare.", {grav:.7, psih:.4}],
     ["Accept 5–7 gărzi pe lună și după rezidențiat, dacă specialitatea mă pasionează.", {stil:-1}],
     ["Un program de tip 8–15, fără gărzi ca specialist, cântărește mult în alegerea mea.", {stil:1}],
   ]],
@@ -419,39 +411,143 @@ const SECTIONS = [
     ["Vreau ca anamneza și examenul clinic să rămână centrale în munca mea, cu 20–30 de pacienți pe zi.", {contact:1}],
     ["Aș prefera ca interlocutorii mei principali să fie alți medici, nu pacienții.", {contact:-1, lab:.2, vizual:.2}],
     ["Mă motivează să urmăresc același pacient cronic ani de zile, cu reevaluări periodice.", {cont:1}],
-    ["Prefer episoade de îngrijire scurte: diagnostic, intervenție, externare sau transfer.", {cont:-1}],
     ["Mă descurc bine cu pacientul pediatric: doze pe kilogram, examenul unui copil care plânge, părinți anxioși.", {copii:1}],
     ["Mă atrage pacientul vârstnic polimorbid, cu polipragmazie și sindroame geriatrice.", {varst:1}],
     ["Patologia obstetricală și ginecologică (sarcină, infertilitate, menopauză) mă interesează.", {fem:1}],
     ["Aderența, familia și contextul social fac parte din actul medical pentru mine, nu sunt un obstacol.", {psih:1}],
-    ["Pot construi o alianță terapeutică cu pacienți dificili: agitați, cu adicții, fără insight.", {psih:.8, contact:.3}],
-    ["Consilierea pentru renunțarea la fumat, dietă și aderență mi se pare muncă medicală valoroasă, nu pierdere de timp.", {cont:.6, psih:.5, pop:.3}],
   ]],
   ["Raționament clinic", [
     ["Mă motivează cazurile cu diagnostic diferențial larg, în care o analiză aparent banală schimbă tot.", {diag:1}],
-    ["Fiziopatologia la nivel molecular (căi de semnalizare, mutații, imunologie) mă interesează și după examen.", {lab:.6, diag:.5}],
     ["Prefer să gestionez simultan patologia mai multor aparate decât să aprofundez un singur organ.", {larg:1}],
-    ["Vreau să ajung expertul la care colegii trimit cazurile foarte specifice.", {larg:-1}],
-    ["Sunt confortabil cu pacientul nediferențiat: simptom vag, fără diagnostic de trimitere.", {larg:.6, acut:.3, diag:.3}],
-    ["Îmi place titrarea fină a tratamentului: scheme de insulină, anticoagulare, imunosupresie.", {cont:.6, diag:.4, chir:-.4}],
+    ["M-aș simți împlinit corelând morfologia (lame, culturi, parametri de laborator) cu clinica, fără să examinez eu pacientul.", {lab:1, contact:-.5}],
+    ["Identific rapid un pattern pe imagine: o leziune la dermatoscop, un frotiu, un semn radiologic.", {vizual:1}],
     ["Indicatorii populaționali (incidență, acoperire vaccinală, programe de screening) mă interesează mai mult decât cazul individual.", {pop:1, contact:-.4}],
-    ["Mă văd făcând doctorat, publicând și participând la studii clinice.", {lab:.6, diag:.4}],
-  ]],
-  ["Carieră și sistem", [
     ["Potențialul de activitate în privat (cabinet, proceduri la cerere) contează în decizia mea.", {priv:1}],
-    ["Mă văd lucrând predominant în ambulatoriu, nu pe o secție cu paturi.", {stil:.6, priv:.4, acut:-.4}],
-    ["Prefer un centru universitar cu cazuistică grea, chiar dacă programul e mai solicitant.", {acut:.4, grav:.4, priv:-.4, stil:-.3}],
   ]],
 ];
 const QUESTIONS = SECTIONS.flatMap(([sec, qs]) => qs.map(([t, m]) => ({ sec, t, m })));
+
+/* ===================== NIVELUL 2: RAMURI ===================== */
+const ALIAS = {
+  CG:"Chirurgie generală", CCV:"Chirurgie cardiovasculară", TOR:"Chirurgie toracică", VASC:"Chirurgie vasculară",
+  PLAST:"Chirurgie plastică, estetică și microchirurgie reconstructivă", NCH:"Neurochirurgie", ORTO:"Ortopedie și traumatologie",
+  ORL:"Otorinolaringologie (ORL)", OFT:"Oftalmologie", URO:"Urologie", OG:"Obstetrică-ginecologie", OMF:"Chirurgie orală și maxilo-facială",
+  CHP:"Chirurgie pediatrică", ORTP:"Ortopedie pediatrică", ATI:"Anestezie și terapie intensivă", MU:"Medicină de urgență",
+  CARD:"Cardiologie", NEUR:"Neurologie", BI:"Boli infecțioase", GAST:"Gastroenterologie", PNEU:"Pneumologie", NEF:"Nefrologie",
+  HEM:"Hematologie", MI:"Medicină internă", MF:"Medicină de familie", ENDO:"Endocrinologie", DIAB:"Diabet zaharat, nutriție și boli metabolice",
+  REUM:"Reumatologie", ALG:"Alergologie și imunologie clinică", DERM:"Dermatovenerologie", GER:"Geriatrie și gerontologie",
+  ONC:"Oncologie medicală", RT:"Radioterapie", MFR:"Medicină fizică și de reabilitare", MS:"Medicină sportivă", MM:"Medicina muncii",
+  PED:"Pediatrie", NEO:"Neonatologie", NP:"Neurologie pediatrică", CP:"Cardiologie pediatrică", PSP:"Psihiatrie pediatrică",
+  GEN:"Genetică medicală", AP:"Anatomie patologică", LAB:"Medicină de laborator", RAD:"Radiologie și imagistică medicală",
+  MN:"Medicină nucleară", MB:"Microbiologie medicală", ML:"Medicină legală", EPI:"Epidemiologie", SP:"Sănătate publică și management",
+  PSI:"Psihiatrie",
+};
+const ID = {};
+for (const [a, n] of Object.entries(ALIAS)) {
+  const s = SPECS.find(x => x.n === n);
+  if (!s) throw new Error("Specialitate lipsă: " + n);
+  ID[a] = s.id;
+}
+
+const BRANCHES = [
+  { k: "c", n: "Chirurgical", d: "Actul principal este intervenția în blocul operator.",
+    m: "CG CCV TOR VASC PLAST NCH ORTO ORL OFT URO OG OMF CHP ORTP", q: [
+    ["Laparotomia pentru un abdomen acut la 3 noaptea e pentru mine chirurgia adevărată.", {CG:1, CHP:.4, URO:.2}],
+    ["Mă atrage microchirurgia pe structuri de 1–2 mm, sub microscop operator.", {OFT:1, NCH:.8, PLAST:.8, ORL:.5, OMF:.4}],
+    ["Prefer chirurgia pe os: osteosinteză, artroplastie, fixatoare externe.", {ORTO:1, ORTP:1, OMF:.5, NCH:.3}],
+    ["Vreau multe intervenții scurte, sub o oră, nu două-trei intervenții mari pe zi.", {OFT:1, ORL:.6, URO:.5, PLAST:.3, CCV:-.8, NCH:-.6, TOR:-.5, CG:-.3}],
+    ["Mă interesează chirurgia endoscopică pe căi naturale: endourologie, chirurgie endoscopică sinusală.", {URO:1, ORL:1, OG:.3}],
+    ["Mă văd îmbinând chirurgia cu urmărirea sarcinii și asistența la naștere.", {OG:1.3}],
+    ["Patologia cardiacă și a aortei, cu circulație extracorporeală, mă atrage.", {CCV:1.2, VASC:.5}],
+    ["Vreau să combin chirurgia deschisă cu procedurile endovasculare: stent, angioplastie, endoproteză.", {VASC:1.2, CCV:.4}],
+    ["Rezultatul funcțional și estetic al unei reconstrucții cu lambouri și grefe contează mult pentru mine.", {PLAST:1.2, OMF:.7, ORL:.3}],
+    ["Patologia oncologică toracică și toracoscopia mă atrag.", {TOR:1.2, CG:.2}],
+    ["Neurotrauma și tumorile cerebrale și spinale mă atrag, chiar cu prognostic adesea rezervat.", {NCH:1.3}],
+    ["Aș opera copii, inclusiv nou-născuți cu malformații, mai degrabă decât adulți.", {CHP:1, ORTP:1, ORTO:-.5, CG:-.4}],
+    ["Patologia cap-gât (sinusuri, ureche medie, laringe) mă atrage.", {ORL:1.3}],
+    ["Patologia urologică (litiază, prostată, tumori de vezică și rinichi) mă atrage.", {URO:1.3}],
+    ["Chirurgia feței și a cavității orale, cu componenta dentară, mă atrage (necesită și studii de medicină dentară).", {OMF:1.3}],
+  ]},
+  { k: "a", n: "Medical acut și intervențional", d: "Pacient internat sau instabil, decizii rapide, proceduri diagnostice și terapeutice.",
+    m: "ATI MU CARD NEUR BI GAST PNEU NEF HEM MI", q: [
+    ["Ventilația mecanică, aminele și monitorizarea invazivă sunt lucruri pe care vreau să le stăpânesc perfect.", {ATI:1.2, MU:.4, PNEU:.3}],
+    ["Mă atrage triajul și primele 60 de minute ale oricărui pacient, apoi predarea lui.", {MU:1.3, ATI:.3}],
+    ["ECG-ul, ecocardiografia și sala de cateterism mă atrag.", {CARD:1.3}],
+    ["Îmi place să localizez leziunea din examenul neurologic, înainte de imagistică.", {NEUR:1.3}],
+    ["Endoscopia digestivă intervențională și hepatologia mă atrag.", {GAST:1.3}],
+    ["Echilibrul acido-bazic și hidroelectrolitic, dializa și transplantul renal mă atrag.", {NEF:1.3, ATI:.3}],
+    ["Antibioterapia țintită, sepsisul și infecțiile rare sau tropicale mă atrag.", {BI:1.3, ATI:.2}],
+    ["Frotiul, medulograma și tratamentul hemopatiilor maligne mă atrag.", {HEM:1.3}],
+    ["BPOC-ul, astmul sever, bronhoscopia și ventilația noninvazivă mă atrag.", {PNEU:1.3}],
+    ["Vreau să rămân internist: să țin pacientul întreg, fără să-l împart pe organe.", {MI:1.3}],
+  ]},
+  { k: "m", n: "Medical cronic și ambulator", d: "Continuitate, boli cronice, activitate predominant de cabinet.",
+    m: "MF ENDO DIAB REUM ALG DERM GER ONC RT MFR MS MM MI", q: [
+    ["Patologia tiroidiană, hipofizară și suprarenaliană, cu explorări hormonale dinamice, mă atrage.", {ENDO:1.3}],
+    ["Diabetul, senzorii de glicemie, pompele de insulină și obezitatea mă atrag.", {DIAB:1.3, ENDO:.3}],
+    ["Bolile autoimune sistemice, terapia biologică și ecografia articulară mă atrag.", {REUM:1.3, ALG:.3}],
+    ["Diagnosticul cutanat la dermatoscop, mici excizii și laserul mă atrag.", {DERM:1.3}],
+    ["Testele cutanate, imunoterapia alergenică și astmul alergic mă atrag.", {ALG:1.3}],
+    ["Vreau să fiu medicul de prim contact pentru o listă de pacienți de toate vârstele.", {MF:1.3}],
+    ["Terapia oncologică sistemică, cu imunoterapie și terapii țintite, mă atrage.", {ONC:1.3, RT:.4}],
+    ["Planificarea dozimetrică și colaborarea cu fizicianul medical mă atrag.", {RT:1.3}],
+    ["Recuperarea funcțională după AVC, fracturi sau intervenții mă atrage.", {MFR:1.3}],
+    ["Lucrul cu sportivi de performanță și evaluarea la efort mă atrag.", {MS:1.3}],
+    ["Bolile profesionale și evaluarea aptitudinii în muncă mă atrag.", {MM:1.3}],
+    ["Vârstnicul fragil, demența și deprescrierea mă atrag.", {GER:1.3, MI:.3}],
+  ]},
+  { k: "p", n: "Pediatric", d: "Copilul de la făt la adolescent, cu familia lui.",
+    m: "PED NEO CHP ORTP NP CP PSP GEN", q: [
+    ["Prematurul, sala de nașteri și terapia intensivă neonatală mă atrag.", {NEO:1.3}],
+    ["Pediatria generală cu gardă, de la bronșiolită la deshidratare, mă atrage.", {PED:1.3}],
+    ["Epilepsiile copilului și întârzierile de dezvoltare mă atrag.", {NP:1.3}],
+    ["Cardiopatiile congenitale și ecocardiografia fetală mă atrag.", {CP:1.3}],
+    ["Autismul, ADHD-ul și colaborarea cu școala și familia mă atrag.", {PSP:1.3}],
+    ["Sindroamele genetice, dismorfologia și sfatul genetic mă atrag.", {GEN:1.3}],
+    ["Chirurgia viscerală pediatrică mă atrage.", {CHP:1.3}],
+    ["Scolioza, displazia de șold și piciorul strâmb congenital mă atrag.", {ORTP:1.3}],
+  ]},
+  { k: "l", n: "Paraclinic și populațional", d: "Diagnostic din imagine, țesut sau laborator, sau sănătatea populației.",
+    m: "AP LAB RAD MN MB ML GEN EPI SP", q: [
+    ["Histopatologia, imunohistochimia și examenul extemporaneu mă atrag.", {AP:1.3}],
+    ["Citirea CT, RMN și ecografie, plus biopsiile ghidate, mă atrag.", {RAD:1.3, MN:.3}],
+    ["PET-CT-ul, radiofarmaceuticele și terapia cu izotopi mă atrag.", {MN:1.3}],
+    ["Validarea rezultatelor, controlul calității și automatizarea laboratorului mă atrag.", {LAB:1.3}],
+    ["Culturile, antibiogramele și infecțiile asociate asistenței medicale mă atrag.", {MB:1.3}],
+    ["Necropsiile, expertizele pe persoane vii și rapoartele pentru instanță mă atrag.", {ML:1.3}],
+    ["Interpretarea variantelor genetice din secvențiere mă atrage.", {GEN:1.3}],
+    ["Investigația de focar și biostatistica mă atrag.", {EPI:1.3}],
+    ["Politicile de sănătate, bugetele și conducerea unui spital mă atrag.", {SP:1.3}],
+    ["Radiologia intervențională (embolizări, drenaje) mă atrage.", {RAD:.9}],
+  ]},
+  { k: "n", n: "Neuro-psihic", d: "Creierul și comportamentul, de la leziune la psihopatologie.",
+    m: "PSI PSP NEUR NP GER", q: [
+    ["Psihopatologia (psihoze, tulburări afective, tulburări de personalitate) mă atrage.", {PSI:1.3, PSP:.3}],
+    ["Mă văd făcând psihoterapie, nu doar prescriind.", {PSI:.8, PSP:.8}],
+    ["Psihofarmacologia și ajustarea antipsihoticelor și antidepresivelor mă atrag.", {PSI:1}],
+    ["Patologia cu substrat lezional, corelată cu neuroimagistica, mă atrage.", {NEUR:1.3, NP:.4}],
+    ["AVC-ul acut și tromboliza mă atrag.", {NEUR:1}],
+    ["Demențele, Parkinsonul și pacientul vârstnic mă atrag.", {NEUR:.6, GER:.9, PSI:.3}],
+    ["Adicțiile și psihiatria medico-legală mă atrag.", {PSI:1}],
+    ["Copiii și adolescenții sunt pacienții cu care vreau să lucrez.", {PSP:1, NP:1}],
+  ]},
+];
+BRANCHES.forEach(b => {
+  b.ids = b.m.split(" ").map(a => ID[a]);
+  b.qs = b.q.map(([t, bo]) => { const boost = {}; for (const [a, w] of Object.entries(bo)) { if (ID[a] === undefined) throw new Error("Alias lipsă: " + a); boost[ID[a]] = w; } return { t, boost }; });
+});
+const BR = k => BRANCHES.find(b => b.k === k);
+const BRANCH_BOOST = 0.26;
+
 const LIKERT = [["1","Dezacord total"],["2","Dezacord"],["3","Neutru"],["4","Acord"],["5","Acord total"]];
 const N_DUELS = 6;
 
 /* ===================== STARE ===================== */
 let S = fresh();
-function fresh() { return { step: "intro", qi: 0, ans: Array(QUESTIONS.length).fill(0), organs: [], acts: [], deals: [], duels: [], di: 0 }; }
-function save() { try { localStorage.setItem("rezi-sim", JSON.stringify(S)); } catch (e) {} }
-function loadSaved() { try { const x = JSON.parse(localStorage.getItem("rezi-sim")); if (x && x.ans && x.ans.length === QUESTIONS.length) return x; } catch (e) {} return null; }
+function fresh() { return { step: "intro", qi: 0, ans: Array(QUESTIONS.length).fill(0), deals: [], br: [], bi: 0, bans: [], duels: [], di: 0 }; }
+function save() { try { localStorage.setItem("rezi-sim-v3", JSON.stringify(S)); } catch (e) {} }
+function loadSaved() { try { const x = JSON.parse(localStorage.getItem("rezi-sim-v3")); if (x && x.ans && x.ans.length === QUESTIONS.length) return x; } catch (e) {} return null; }
+function queue(st) { return st.br.flatMap(k => BR(k).qs.map(q => ({ ...q, b: k }))); }
 
 /* ===================== SCOR ===================== */
 function profile(ans) {
@@ -472,7 +568,15 @@ function profile(ans) {
 
 function scoreAll(st) {
   const p = profile(st.ans);
-  const res = SPECS.map(s => {
+  // Scor de ramură: media ponderată a acordului pe întrebările care privesc specialitatea (−1…1)
+  const bnum = {}, bden = {}, boost = {};
+  queue(st).forEach((q, j) => {
+    const a = st.bans[j]; if (!a) return;
+    const c = (a - 3) / 2;
+    for (const [id, w] of Object.entries(q.boost)) { bnum[id] = (bnum[id] || 0) + c * w; bden[id] = (bden[id] || 0) + Math.abs(w); }
+  });
+  for (const id in bnum) boost[id] = BRANCH_BOOST * bnum[id] / Math.max(1, bden[id]);
+  return SPECS.map(s => {
     const ex = st.deals.filter(di => DEALS[di][1](s)).map(di => DEALS[di][2]);
     let num = 0, den = 0;
     const fits = [];
@@ -483,63 +587,68 @@ function scoreAll(st) {
       num += w * (1 - gap / 4); den += w;
       if (str >= 0.4) fits.push({ k, gap, str, text: pref > 2 ? hi : lo });
     });
-    let sc = num / den;
-    const om = s.o.filter(o => st.organs.includes(o)).length;
-    if (st.organs.length) sc += om ? Math.min(0.1, 0.045 * om) : (s.o.includes("tot") ? 0 : -0.03);
-    const am = s.a.filter(a => st.acts.includes(a)).length;
-    sc += Math.min(0.08, 0.03 * am);
-    return { s, raw: sc, ex, om, am,
+    const base = num / den, bst = boost[s.id] || 0;
+    return { s, base, bst, raw: base + bst, ex,
       good: fits.filter(f => f.gap <= 1 && Math.abs(s.v[f.k] - MEAN[f.k]) >= 0.9)
         .sort((a, b) => b.str * Math.abs(s.v[b.k] - MEAN[b.k]) - a.str * Math.abs(s.v[a.k] - MEAN[a.k])).slice(0, 3),
       bad: fits.filter(f => f.gap >= 2).sort((a, b) => b.gap * b.str - a.gap * a.str).slice(0, 2) };
   });
-  return res;
 }
 
+// Afinitatea fiecărei ramuri = media primelor 3 specialități eligibile din ea, doar pe baza triajului
+function branchAffinity(st) {
+  const sc = scoreAll({ ...st, br: [], bans: [] });
+  return BRANCHES.map(b => {
+    const el = b.ids.map(id => sc[id]).filter(r => !r.ex.length).sort((x, y) => y.base - x.base);
+    const top = el.slice(0, 3);
+    const aff = top.length ? top.reduce((t, r) => t + r.base, 0) / top.length : 0;
+    return { b, aff, el };
+  }).sort((x, y) => y.aff - x.aff);
+}
+function defaultBranches(st) {
+  const a = branchAffinity(st).filter(x => x.el.length);
+  if (!a.length) return [];
+  const pick = [a[0].b.k];
+  if (a[1] && a[0].aff - a[1].aff <= 0.03) pick.push(a[1].b.k);
+  return pick;
+}
+
+function rankEligible(st) { return scoreAll(st).filter(r => !r.ex.length).sort((a, b) => b.raw - a.raw); }
 function duelPairs(ranked) {
-  const t = ranked.slice(0, 4).map(r => r.s.id);
-  const pairs = [];
+  const t = ranked.slice(0, 4).map(r => r.s.id), pairs = [];
   for (let i = 0; i < t.length; i++) for (let j = i + 1; j < t.length; j++) pairs.push([t[i], t[j]]);
   return pairs;
 }
-
-function rankEligible(st) {
-  return scoreAll(st).filter(r => !r.ex.length).sort((a, b) => b.raw - a.raw);
-}
-
 function finalResults(st) {
   const all = scoreAll(st);
   const ok = all.filter(r => !r.ex.length).sort((a, b) => b.raw - a.raw);
-  const pairs = duelPairs(ok);
   const wins = {};
-  pairs.forEach(([a, b], i) => {
-    const w = st.duels[i];
-    if (w === 0) wins[a] = (wins[a] || 0) + 1;
-    if (w === 1) wins[b] = (wins[b] || 0) + 1;
+  duelPairs(ok).forEach(([a, b], i) => {
+    if (st.duels[i] === 0) wins[a] = (wins[a] || 0) + 1;
+    if (st.duels[i] === 1) wins[b] = (wins[b] || 0) + 1;
   });
   ok.forEach(r => { r.wins = wins[r.s.id] || 0; r.fin = Math.min(0.99, r.raw + 0.03 * r.wins); });
   ok.sort((a, b) => b.fin - a.fin);
   const ex = all.filter(r => r.ex.length).sort((a, b) => b.raw - a.raw);
-  return { ok, ex, p: profile(st.ans), dueled: pairs.length > 0 && st.duels.length >= pairs.length };
+  return { ok, ex, p: profile(st.ans) };
 }
 
 /* ===================== COD DE PARTAJARE ===================== */
 // Doar litere, cifre și cratime, ca să treacă prin hash.
-function maskOf(list, src) { let m = 0n; list.forEach(k => { const i = src.findIndex(x => x[0] === k); if (i >= 0) m |= 1n << BigInt(i); }); return m.toString(36); }
-function listOf(code, src) { let m = 0n; try { for (const ch of code) m = m * 36n + BigInt(parseInt(ch, 36)); } catch (e) { return []; } return src.filter((_, i) => (m >> BigInt(i)) & 1n).map(x => x[0]); }
 function encode(st) {
   const dm = st.deals.reduce((m, i) => m | (1 << i), 0).toString(36);
-  return ["r", st.ans.join(""), maskOf(st.organs, ORGANS), maskOf(st.acts, ACTS), dm, st.duels.join("") || "x"].join("-");
+  return ["t", st.ans.join(""), dm, st.br.join("") || "x", st.bans.join("") || "x", st.duels.join("") || "x"].join("-");
 }
 function decode(h) {
   const parts = h.split("-");
-  if (parts[0] !== "r" || parts.length !== 6 || parts[1].length !== QUESTIONS.length || !/^[1-5]+$/.test(parts[1])) return null;
+  if (parts[0] !== "t" || parts.length !== 6 || parts[1].length !== QUESTIONS.length || !/^[1-5]+$/.test(parts[1])) return null;
   const st = fresh();
   st.ans = parts[1].split("").map(Number);
-  st.organs = listOf(parts[2], ORGANS);
-  st.acts = listOf(parts[3], ACTS);
-  const dm = parseInt(parts[4], 36) || 0;
+  const dm = parseInt(parts[2], 36) || 0;
   st.deals = DEALS.map((_, i) => i).filter(i => dm & (1 << i));
+  st.br = parts[3] === "x" ? [] : [...new Set(parts[3].split(""))].filter(k => BR(k));
+  st.bans = parts[4] === "x" ? [] : parts[4].split("").map(Number);
+  if (st.bans.length !== queue(st).length || st.bans.some(a => a < 1 || a > 5)) return null;
   st.duels = parts[5] === "x" ? [] : parts[5].split("").map(Number).filter(n => n === 0 || n === 1);
   st.step = "results";
   return st;
@@ -548,16 +657,25 @@ function decode(h) {
 /* ===================== RANDARE ===================== */
 const app = document.getElementById("app");
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const TOTAL_STEPS = QUESTIONS.length + 3 + N_DUELS;
-
-function progressBar(done, label) {
-  const pct = Math.round(100 * done / TOTAL_STEPS);
+function totalSteps(st) { return 1 + QUESTIONS.length + 1 + (st.br.length ? queue(st).length : 20) + N_DUELS; }
+function stepIndex(st) {
+  const Q = QUESTIONS.length;
+  return { deals: 0, q: 1 + st.qi, branch: 1 + Q, bq: 2 + Q + st.bi, duel: 2 + Q + queue(st).length + st.di }[st.step] || 0;
+}
+function progressBar(label) {
+  const pct = Math.round(100 * stepIndex(S) / totalSteps(S));
   return `<div class="progress"><div class="progress-row"><span class="eyebrow">${esc(label)}</span><span class="mono muted">${pct}%</span></div><div class="bar"><i style="width:${pct}%"></i></div></div>`;
+}
+function treeTrail(st, current) {
+  const lv = [["deals", "Excluderi"], ["q", "Triaj"], ["branch", "Ramură"], ["bq", "Întrebări de ramură"], ["duel", "Departajare"]];
+  const order = lv.map(l => l[0]);
+  const ci = current === "results" ? lv.length : order.indexOf(current);
+  return `<ol class="trail">${lv.map(([k, l], i) => `<li class="${i < ci ? "done" : i === ci ? "now" : ""}">${l}</li>`).join("")}</ol>`;
 }
 
 function render() {
   save();
-  const f = { intro, q: question, organs: () => multi("organs"), acts: () => multi("acts"), deals: () => multi("deals"), duel, results }[S.step];
+  const f = { intro, deals, q: question, branch, bq: branchQuestion, duel, results }[S.step];
   app.innerHTML = f();
   bind();
   if (S.step !== "intro") window.scrollTo({ top: 0 });
@@ -569,67 +687,36 @@ function intro() {
   return `<section class="screen">
     <p class="eyebrow">Pentru absolvenți și rezidenți indeciși</p>
     <h1>Ce specialitate ți se potrivește la rezidențiat?</h1>
-    <p class="intro-lead">Evaluezi ${QUESTIONS.length} afirmații despre activitatea clinică pe care ți-o dorești, alegi patologia și competențele care te atrag și ce excluzi categoric, apoi compari zile de lucru fără să vezi numele specialităților. La final primești un clasament al celor ${SPECS.length} specialități.</p>
+    <p class="intro-lead">Simulatorul funcționează ca un arbore de decizie. Întâi elimină ce excluzi categoric, apoi un triaj de ${QUESTIONS.length} afirmații te orientează spre una dintre cele ${BRANCHES.length} ramuri mari. Acolo, întrebări specifice departajează specialitățile apropiate între ele.</p>
     <div class="facts">
       <div><b class="mono">${SPECS.length}</b><span>specialități medicale evaluate</span></div>
-      <div><b class="mono">${TOTAL_STEPS}</b><span>pași, cam 8 minute</span></div>
-      <div><b class="mono">${DIMS.length}</b><span>dimensiuni ale profilului tău</span></div>
+      <div><b class="mono">${BRANCHES.length}</b><span>ramuri cu întrebări proprii</span></div>
+      <div><b class="mono">~10</b><span>minute, cu tot cu departajare</span></div>
     </div>
     <ol class="steps">
-      <li><span><b>Afirmații clinice.</b> Acordul tău cu fiecare, de la 1 la 5.</span></li>
-      <li><span><b>Interese.</b> Domeniile de patologie și competențele pe care vrei să le practici.</span></li>
-      <li><span><b>Criterii eliminatorii.</b> Ce nu ai face niciodată. Specialitățile care le încalcă sunt scoase din clasament, oricât de bine s-ar potrivi altfel.</span></li>
-      <li><span><b>Departajare oarbă.</b> Primele patru specialități se înfruntă două câte două prin descrieri ale unei zile obișnuite, fără nume.</span></li>
+      <li><span><b>Criterii eliminatorii.</b> Specialitățile care încalcă un criteriu ales de tine sunt scoase din tot arborele.</span></li>
+      <li><span><b>Triaj.</b> ${QUESTIONS.length} afirmații despre activitatea clinică pe care ți-o dorești.</span></li>
+      <li><span><b>Ramura.</b> Vezi spre ce direcție te îndreaptă triajul și poți adăuga sau scoate ramuri.</span></li>
+      <li><span><b>Întrebări de ramură.</b> 8–12 afirmații care fac diferența între specialități apropiate, de exemplu oftalmologie și ORL.</span></li>
+      <li><span><b>Departajare oarbă.</b> Primele patru specialități comparate două câte două prin zile de lucru, fără nume.</span></li>
     </ol>
-    ${canResume ? `<div class="resume"><span>Ai un test început, la pasul ${stepIndex(saved) + 1} din ${TOTAL_STEPS}.</span><button class="btn" id="resumeBtn" type="button">Continuă de unde ai rămas</button></div>` : ""}
+    ${canResume ? `<div class="resume"><span>Ai un test început, la ${Math.round(100 * stepIndex(saved) / totalSteps(saved))}%.</span><button class="btn" id="resumeBtn" type="button">Continuă de unde ai rămas</button></div>` : ""}
     <div class="actions"><button class="btn primary" id="startBtn" type="button">Începe testul</button></div>
   </section>`;
 }
 
-function stepIndex(st) {
-  if (st.step === "q") return st.qi;
-  if (st.step === "organs") return QUESTIONS.length;
-  if (st.step === "acts") return QUESTIONS.length + 1;
-  if (st.step === "deals") return QUESTIONS.length + 2;
-  if (st.step === "duel") return QUESTIONS.length + 3 + st.di;
-  return 0;
-}
-
-function question() {
-  const q = QUESTIONS[S.qi], a = S.ans[S.qi];
+function deals() {
   return `<section class="screen">
-    ${progressBar(S.qi, `${q.sec} · ${S.qi + 1} din ${QUESTIONS.length}`)}
+    ${treeTrail(S, "deals")}
+    ${progressBar("Nivelul 0 · Criterii eliminatorii")}
     <div class="qcard">
-      <p class="qtext">${esc(q.t)}</p>
-      <div class="likert" role="group" aria-label="Cât de mult te descrie">
-        ${LIKERT.map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${a == v}"><b>${v}</b>${l}</button>`).join("")}
-      </div>
-    </div>
-    <div class="qnav">
-      <button class="btn ghost" id="backBtn" type="button" ${S.qi === 0 ? "disabled" : ""}>← Înapoi</button>
-      <span class="hint">Poți folosi tastele 1–5</span>
-      ${a ? `<button class="btn" id="nextBtn" type="button">Mai departe →</button>` : `<span></span>`}
-    </div>
-  </section>`;
-}
-
-const MULTI = {
-  organs: { src: ORGANS, title: "Ce patologie te-a atras cel mai mult în stagii?", sub: "Alege oricâte. Dacă nu alegi nimic, domeniul de patologie nu influențează scorul.", label: "Interese · patologie", idx: 0 },
-  acts: { src: ACTS, title: "Ce competențe ai vrea să practici?", sub: "Alege oricâte. Fiecare potrivire adaugă puncte specialităților în care competența e de rutină.", label: "Interese · competențe", idx: 1 },
-  deals: { src: DEALS.map((d, i) => [i, d[0]]), title: "Ce excluzi categoric din viitoarea ta specialitate?", sub: "Fiecare alegere elimină complet specialitățile care o implică. Bifează doar ce chiar nu ai accepta.", label: "Criterii eliminatorii", idx: 2, no: true },
-};
-function multi(kind) {
-  const m = MULTI[kind], sel = S[kind];
-  return `<section class="screen">
-    ${progressBar(QUESTIONS.length + m.idx, m.label)}
-    <div class="qcard">
-      <div style="display:grid;gap:6px"><p class="qtext">${m.title}</p><p class="muted">${m.sub}</p></div>
-      <div class="chips">${m.src.map(([k, l]) => `<button type="button" class="chip${m.no ? " no" : ""}" data-k="${k}" aria-pressed="${sel.includes(k)}">${esc(l)}</button>`).join("")}</div>
-      ${kind === "deals" ? `<p class="mono muted" id="dealCount">${dealNote()}</p>` : ""}
+      <div style="display:grid;gap:6px"><p class="qtext">Ce excluzi categoric din viitoarea ta specialitate?</p><p class="muted">Fiecare alegere elimină complet specialitățile care o implică. Bifează doar ce chiar nu ai accepta.</p></div>
+      <div class="chips">${DEALS.map((d, i) => `<button type="button" class="chip no" data-k="${i}" aria-pressed="${S.deals.includes(i)}">${esc(d[0])}</button>`).join("")}</div>
+      <p class="mono muted" id="dealCount">${dealNote()}</p>
     </div>
     <div class="qnav">
       <button class="btn ghost" id="backBtn" type="button">← Înapoi</button>
-      <button class="btn primary" id="nextBtn" type="button">${sel.length ? "Mai departe →" : "Niciuna, mai departe →"}</button>
+      <button class="btn primary" id="nextBtn" type="button">${S.deals.length ? "Mai departe →" : "Nu exclud nimic →"}</button>
     </div>
   </section>`;
 }
@@ -638,15 +725,76 @@ function dealNote() {
   return `Rămân ${left} din ${SPECS.length} specialități.`;
 }
 
+function likertCard(text, a) {
+  return `<div class="qcard">
+      <p class="qtext">${esc(text)}</p>
+      <div class="likert" role="group" aria-label="Acordul tău">
+        ${LIKERT.map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${a == v}"><b>${v}</b>${l}</button>`).join("")}
+      </div>
+    </div>`;
+}
+function likertNav(a, first) {
+  return `<div class="qnav">
+      <button class="btn ghost" id="backBtn" type="button">← Înapoi</button>
+      <span class="hint">Poți folosi tastele 1–5</span>
+      ${a ? `<button class="btn" id="nextBtn" type="button">Mai departe →</button>` : `<span></span>`}
+    </div>`;
+}
+
+function question() {
+  const q = QUESTIONS[S.qi], a = S.ans[S.qi];
+  return `<section class="screen">
+    ${treeTrail(S, "q")}
+    ${progressBar(`Nivelul 1 · Triaj · ${q.sec} · ${S.qi + 1} din ${QUESTIONS.length}`)}
+    ${likertCard(q.t, a)}
+    ${likertNav(a)}
+  </section>`;
+}
+
+function branch() {
+  const aff = branchAffinity(S);
+  const best = aff[0] ? aff[0].aff : 1;
+  return `<section class="screen">
+    ${treeTrail(S, "branch")}
+    ${progressBar("Nivelul 2 · Alegerea ramurii")}
+    <div style="display:grid;gap:6px"><h2>Triajul te trimite spre ${esc(S.br.map(k => BR(k).n).join(" și ") || "nicio ramură")}</h2>
+    <p class="muted">Ramurile bifate primesc întrebări specifice. Poți adăuga sau scoate ramuri. Fiecare ramură adaugă 8–12 afirmații. Specialitățile din ramurile neexplorate rămân în clasament, dar fără punctele de departajare.</p></div>
+    <div class="branches">${aff.map(({ b, aff: a, el }) => {
+      const rel = Math.round(100 * a / best);
+      return `<button type="button" class="branch" data-k="${b.k}" aria-pressed="${S.br.includes(b.k)}" ${el.length ? "" : "disabled"}>
+        <div class="opt-head"><h3>${esc(b.n)}</h3><span class="score">${el.length ? rel + "%" : "eliminată"}</span></div>
+        <div class="meter"><i style="width:${el.length ? rel : 0}%"></i></div>
+        <p class="muted">${esc(b.d)}</p>
+        <p class="meta">${el.length ? `${el.length} specialități: ${esc(el.slice(0, 4).map(r => r.s.n).join(", "))}${el.length > 4 ? "…" : ""} · ${b.qs.length} întrebări` : "Toate specialitățile din ramură sunt excluse de criteriile tale"}</p>
+      </button>`;
+    }).join("")}</div>
+    <div class="qnav">
+      <button class="btn ghost" id="backBtn" type="button">← Înapoi</button>
+      <button class="btn primary" id="nextBtn" type="button" ${S.br.length ? "" : "disabled"}>Continuă în ramură →</button>
+    </div>
+  </section>`;
+}
+
+function branchQuestion() {
+  const qs = queue(S), q = qs[S.bi], a = S.bans[S.bi];
+  const within = qs.filter(x => x.b === q.b), wi = within.indexOf(q);
+  return `<section class="screen">
+    ${treeTrail(S, "bq")}
+    ${progressBar(`Nivelul 3 · ${BR(q.b).n} · ${wi + 1} din ${within.length}`)}
+    ${likertCard(q.t, a)}
+    ${likertNav(a)}
+  </section>`;
+}
+
 function duel() {
-  const ranked = rankEligible(S);
-  const pairs = duelPairs(ranked);
+  const pairs = duelPairs(rankEligible(S));
   if (S.di >= pairs.length) { S.step = "results"; return results(); }
   const [a, b] = pairs[S.di].map(id => SPECS[id]);
-  const flip = (S.di % 2) === 1; // alternează poziția ca să nu favorizeze stânga
+  const flip = (S.di % 2) === 1;
   const left = flip ? b : a, right = flip ? a : b;
   return `<section class="screen">
-    ${progressBar(QUESTIONS.length + 3 + S.di, `Departajare oarbă · ${S.di + 1} din ${pairs.length}`)}
+    ${treeTrail(S, "duel")}
+    ${progressBar(`Nivelul 4 · Departajare oarbă · ${S.di + 1} din ${pairs.length}`)}
     <div style="display:grid;gap:6px"><h2>Ce zi ai prefera să trăiești?</h2><p class="muted">Numele specialităților sunt ascunse. Alege după instinct.</p></div>
     <div class="duel">
       <button type="button" class="day" data-id="${left.id}"><span class="eyebrow">Ziua A</span><p>${esc(left.day)}</p></button>
@@ -663,19 +811,22 @@ function verdictOf(ok) {
   if (gap >= 1.5) return ["Avantaj moderat față de locul 2", false];
   return ["Aproape la egalitate cu locul 2", true];
 }
+const pct = x => Math.round(Math.max(0, x) * 100);
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 
 function results() {
   const { ok, ex, p } = finalResults(S);
   if (!ok.length) return `<section class="screen"><h2>Ai eliminat toate specialitățile</h2><p>Criteriile eliminatorii alese exclud toate cele ${SPECS.length} specialități. Întoarce-te și renunță la unul dintre ele.</p><div class="actions"><button class="btn primary" id="toDeals" type="button">Modifică criteriile</button></div></section>`;
   const top = ok.slice(0, 5);
   const [vText, vClose] = verdictOf(ok);
-  const code = encode(S);
+  const path = ["Triaj", ...S.br.map(k => BR(k).n), "Departajare oarbă"];
   return `<section class="screen">
     <div class="verdict">
       <p class="eyebrow">Rezultatul tău</p>
       <h1>${esc(top[0].s.n)}</h1>
       <span class="pill${vClose ? " close" : ""}">${vText}</span>
-      <p class="muted">${vClose ? `Primele două sunt foarte apropiate. Un stagiu sau o gardă în ambele te poate ajuta să decizi.` : `Potrivirea este calculată din profilul tău pe ${DIMS.length} dimensiuni, din interese și din departajarea oarbă.`}</p>
+      <p class="muted">Traseu: ${esc(path.join(" → "))}${S.deals.length ? ` · ${ex.length} specialități excluse` : ""}</p>
+      ${vClose ? `<p class="muted">Primele două sunt foarte apropiate. Un stagiu sau o gardă în ambele te poate ajuta să decizi.</p>` : ""}
     </div>
 
     <ol class="opts">${top.map((r, i) => optCard(r, i)).join("")}</ol>
@@ -688,15 +839,15 @@ function results() {
     <input class="copybox" id="copybox" readonly hidden value="">
 
     <details>
-      <summary>Profilul tău pe ${DIMS.length} dimensiuni</summary>
+      <summary>Profilul tău din triaj</summary>
       <div class="profile">${DIMS.map(([k, label, lo, hi]) => `<div class="prow"><span>${esc(lo)}</span><div class="ptrack" title="${esc(label)}"><i style="left:${(p[k].pref / 4 * 100).toFixed(1)}%"></i></div><span>${esc(hi)}</span></div>`).join("")}</div>
     </details>
 
     <details>
       <summary>Toate specialitățile (${ok.length})</summary>
       <div class="table-wrap"><table>
-        <thead><tr><th>#</th><th>Specialitate</th><th>Potrivire</th><th>Ani</th></tr></thead>
-        <tbody>${ok.map((r, i) => `<tr><td class="num">${i + 1}</td><td>${esc(r.s.n)}</td><td class="num">${pct(r.fin)}%</td><td class="num">${r.s.y}</td></tr>`).join("")}</tbody>
+        <thead><tr><th>#</th><th>Specialitate</th><th>Triaj</th><th>Ramură</th><th>Final</th><th>Ani</th></tr></thead>
+        <tbody>${ok.map((r, i) => `<tr><td class="num">${i + 1}</td><td>${esc(r.s.n)}</td><td class="num">${pct(r.base)}%</td><td class="num">${r.bst ? (r.bst > 0 ? "+" : "−") + Math.abs(Math.round(r.bst * 100)) : "·"}</td><td class="num">${pct(r.fin)}%</td><td class="num">${r.s.y}</td></tr>`).join("")}</tbody>
       </table></div>
     </details>
 
@@ -709,20 +860,20 @@ function results() {
     </details>` : ""}
 
     <div class="note">
-      <p><b>Cât de precis e testul?</b> Nicio serie de întrebări nu poate garanta 100% că ai ales corect, pentru că preferințele tale se schimbă cu stagiile și experiența. Ce garantează simulatorul: o specialitate care încalcă un criteriu eliminatoriu ales de tine nu apare niciodată în clasament, iar fiecare scor e explicat prin dimensiunile tale.</p>
+      <p><b>Cât de precis e testul?</b> Nicio serie de întrebări nu poate garanta 100% că ai ales corect, pentru că preferințele tale se schimbă cu stagiile și experiența. Ce garantează simulatorul: o specialitate care încalcă un criteriu eliminatoriu ales de tine nu apare niciodată în clasament, iar fiecare scor e explicat de triaj și de răspunsurile din ramură.</p>
       <p>Durata rezidențiatului este orientativă. Verifică durata oficială și numărul de locuri pe rezidentiat.ms.ro înainte de alegere.</p>
-      <p class="mono">Cod rezultat: ${esc(code)}</p>
+      <p class="mono">Cod rezultat: ${esc(encode(S))}</p>
     </div>
   </section>`;
 }
-const pct = x => Math.round(Math.max(0, x) * 100);
 
 function optCard(r, i) {
   const good = r.good.map(f => `<li>${esc(cap(f.text))}</li>`);
-  if (r.om) good.push(`<li>Acoperă ${r.om === 1 ? "un domeniu de patologie ales" : r.om + " domenii de patologie alese"} de tine</li>`);
-  if (r.am) good.push(`<li>Include ${r.am === 1 ? "o competență aleasă" : r.am + " competențe alese"} de tine</li>`);
-  if (r.wins) good.push(`<li>Ai ales-o ${r.wins === 1 ? "o dată" : "de " + r.wins + " ori"} în departajarea oarbă</li>`);
   const bad = r.bad.map(f => `<li class="minus">${esc(DIMS.find(d => d[0] === f.k)[1])}: ${r.s.v[f.k]}/4 aici, dar tu ${esc(f.text)}</li>`);
+  if (r.bst >= 0.03) good.unshift(`<li>Răspunsurile din ramură o susțin puternic</li>`);
+  else if (r.bst >= 0.012) good.unshift(`<li>Răspunsurile din ramură o susțin</li>`);
+  else if (r.bst <= -0.015) bad.unshift(`<li class="minus">Răspunsurile din ramură o defavorizează</li>`);
+  if (r.wins) good.push(`<li>Ai ales-o ${r.wins === 1 ? "o dată" : "de " + r.wins + " ori"} în departajarea oarbă</li>`);
   return `<li class="opt${i === 0 ? " first" : ""}">
     <span class="rank">${i + 1}</span>
     <div class="opt-body">
@@ -734,60 +885,71 @@ function optCard(r, i) {
     </div>
   </li>`;
 }
-const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 
 /* ===================== EVENIMENTE ===================== */
 function go(step) { S.step = step; render(); }
+function startDuels() { if (!rankEligible(S).length) { go("results"); return; } S.di = 0; S.duels = []; go("duel"); }
 function answer(v) {
-  S.ans[S.qi] = v;
-  if (S.qi < QUESTIONS.length - 1) { S.qi++; render(); } else go("organs");
+  if (S.step === "q") {
+    S.ans[S.qi] = v;
+    if (S.qi < QUESTIONS.length - 1) { S.qi++; render(); }
+    else { if (!S.br.length) S.br = defaultBranches(S); go("branch"); }
+  } else if (S.step === "bq") {
+    S.bans[S.bi] = v;
+    if (S.bi < queue(S).length - 1) { S.bi++; render(); } else startDuels();
+  }
 }
 function back() {
-  if (S.step === "q") { if (S.qi > 0) S.qi--; render(); }
-  else if (S.step === "organs") { S.qi = QUESTIONS.length - 1; go("q"); }
-  else if (S.step === "acts") go("organs");
-  else if (S.step === "deals") go("acts");
-  else if (S.step === "duel") { if (S.di > 0) { S.di--; S.duels.length = S.di; render(); } else go("deals"); }
+  if (S.step === "deals") go("intro");
+  else if (S.step === "q") { if (S.qi > 0) { S.qi--; render(); } else go("deals"); }
+  else if (S.step === "branch") { S.qi = QUESTIONS.length - 1; go("q"); }
+  else if (S.step === "bq") { if (S.bi > 0) { S.bi--; render(); } else go("branch"); }
+  else if (S.step === "duel") {
+    if (S.di > 0) { S.di--; S.duels.length = S.di; render(); }
+    else { S.bi = Math.max(0, queue(S).length - 1); go(queue(S).length ? "bq" : "branch"); }
+  }
 }
+function clearHash() { try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} }
 
 function bind() {
   const $ = id => document.getElementById(id);
-  $("startBtn")?.addEventListener("click", () => { S = fresh(); S.step = "q"; history.replaceState(null, "", location.pathname + location.search); render(); });
+  $("startBtn")?.addEventListener("click", () => { S = fresh(); clearHash(); go("deals"); });
   $("resumeBtn")?.addEventListener("click", () => { S = loadSaved(); render(); });
   $("backBtn")?.addEventListener("click", back);
-  $("restartBtn")?.addEventListener("click", () => { S = fresh(); history.replaceState(null, "", location.pathname + location.search); render(); });
+  $("restartBtn")?.addEventListener("click", () => { S = fresh(); clearHash(); render(); });
   $("toDeals")?.addEventListener("click", () => go("deals"));
 
-  if (S.step === "q") {
+  if (S.step === "q" || S.step === "bq") {
     app.querySelectorAll(".likert button").forEach(b => b.addEventListener("click", () => answer(+b.dataset.v)));
-    $("nextBtn")?.addEventListener("click", () => answer(S.ans[S.qi]));
+    $("nextBtn")?.addEventListener("click", () => answer(S.step === "q" ? S.ans[S.qi] : S.bans[S.bi]));
   }
-  if (MULTI[S.step]) {
-    const kind = S.step;
+  if (S.step === "deals") {
     app.querySelectorAll(".chip").forEach(b => b.addEventListener("click", () => {
-      const k = kind === "deals" ? +b.dataset.k : b.dataset.k;
-      const arr = S[kind], i = arr.indexOf(k);
-      i >= 0 ? arr.splice(i, 1) : arr.push(k);
+      const k = +b.dataset.k, i = S.deals.indexOf(k);
+      i >= 0 ? S.deals.splice(i, 1) : S.deals.push(k);
       b.setAttribute("aria-pressed", i < 0);
-      $("nextBtn").textContent = arr.length ? "Mai departe →" : "Niciuna, mai departe →";
-      if (kind === "deals") $("dealCount").textContent = dealNote();
+      $("nextBtn").textContent = S.deals.length ? "Mai departe →" : "Nu exclud nimic →";
+      $("dealCount").textContent = dealNote();
+      S.br = []; S.bans = []; S.bi = 0;
       save();
     }));
-    $("nextBtn").addEventListener("click", () => {
-      if (kind === "organs") go("acts");
-      else if (kind === "acts") go("deals");
-      else {
-        if (!rankEligible(S).length) { go("results"); return; }
-        S.di = 0; S.duels = []; go("duel");
-      }
-    });
+    $("nextBtn").addEventListener("click", () => go("q"));
+  }
+  if (S.step === "branch") {
+    app.querySelectorAll(".branch").forEach(b => b.addEventListener("click", () => {
+      const k = b.dataset.k, i = S.br.indexOf(k);
+      i >= 0 ? S.br.splice(i, 1) : S.br.push(k);
+      S.bans = []; S.bi = 0;
+      render();
+    }));
+    $("nextBtn").addEventListener("click", () => { S.bi = Math.min(S.bi, queue(S).length - 1); go("bq"); });
   }
   if (S.step === "duel") {
     const pairs = duelPairs(rankEligible(S));
     app.querySelectorAll(".day").forEach(b => b.addEventListener("click", () => {
       S.duels[S.di] = +b.dataset.id === pairs[S.di][0] ? 0 : 1;
       S.di++;
-      if (S.di >= pairs.length) { setHash(); go("results"); } else render();
+      if (S.di >= pairs.length) go("results"); else render();
     }));
   }
   if (S.step === "results") {
@@ -800,11 +962,11 @@ function bind() {
     });
   }
 }
-function setHash() { const h = "#" + encode(S); if (location.hash !== h) history.replaceState(null, "", h); }
+function setHash() { const h = "#" + encode(S); if (location.hash !== h) { try { history.replaceState(null, "", h); } catch (e) {} } }
 
-document.getElementById("homeBtn").addEventListener("click", () => { S.step = "intro"; history.replaceState(null, "", location.pathname + location.search); render(); });
+document.getElementById("homeBtn").addEventListener("click", () => { S.step = "intro"; clearHash(); render(); });
 document.addEventListener("keydown", e => {
-  if (S.step === "q" && /^[1-5]$/.test(e.key) && !e.metaKey && !e.ctrlKey) answer(+e.key);
+  if ((S.step === "q" || S.step === "bq") && /^[1-5]$/.test(e.key) && !e.metaKey && !e.ctrlKey && !e.altKey) answer(+e.key);
 });
 function fromHash() {
   const h = location.hash.slice(1);
