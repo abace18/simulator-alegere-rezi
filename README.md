@@ -5,12 +5,13 @@ Test care te ajută să vezi ce specialitate de rezidențiat ți se potrivește.
 Funcționează ca un arbore de decizie:
 
 1. **Criterii eliminatorii**: specialitățile care le încalcă nu apar niciodată în clasament
-2. **Triaj**: 22 de afirmații care construiesc un profil pe 18 dimensiuni
+2. **Triaj**: 30 de afirmații (22 clinice, 8 din viața de zi cu zi) care construiesc un profil pe 18 dimensiuni
+   **Aptitudini**: 7 mini-teste cu timp (precizie motorie, rotație mentală, atenție la detalii, memorie de lucru, calcul de doză, Stroop, judecată situațională); scorurile cântăresc în funcție de cât cere fiecare specialitate
 3. **Ramura**: triajul alege 1–2 din 6 ramuri (Chirurgical, Medical acut, Medical cronic și ambulator, Pediatric, Paraclinic și populațional, Neuro-psihic); utilizatorul poate adăuga sau scoate ramuri
 4. **Întrebări de ramură**: 8–15 afirmații care departajează specialitățile apropiate din ramură
 5. **Departajare oarbă**: primele 4 specialități comparate prin descrieri ale unei zile de lucru, fără nume
 
-Rezultatul: clasament pentru 51 de specialități, cu explicații, și link de partajare.
+Rezultatul: clasament pentru 51 de specialități, cu explicații, link de partajare, raport PDF și imagine compactă (1080×1350) descărcabile.
 
 ## Cum se editează
 
