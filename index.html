@@ -196,6 +196,10 @@ td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; whit
 .aptdone b { font-family: var(--font-display); font-size: 3.2rem; font-weight: 800; color: var(--accent); line-height: 1; }
 .aptdone small { font-size: 1.2rem; color: var(--muted); }
 .aptres { display: grid; gap: 10px; }
+.review ol { display: grid; gap: 16px; padding-left: 20px; margin: 12px 0 0; }
+.review li { display: grid; gap: 4px; font-size: 0.92rem; }
+.rv-ok b { color: var(--accent); }
+.rv-mine b { color: var(--warn); }
 .aptgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 20px; }
 .aptrow { font-size: 0.92rem; }
 
@@ -596,7 +600,7 @@ const APTS = [
   { k: "mem", n: "Memorie de lucru", d: "Cifrele apar pe rând. Reține șirul și scrie-l înapoi. Șirul crește până greșești de două ori la aceeași lungime.", w: "ATI, medicină internă, urgențe" },
   { k: "calc", n: "Calcul rapid", d: "5 calcule simple, cu numere rotunde: doză, ritm de perfuzie, comprimate. Alegi răspunsul din 4 variante, fără calculator. 30 de secunde fiecare.", w: "pediatrie, neonatologie, ATI" },
   { k: "reac", n: "Control sub presiune", d: "Apasă culoarea cu care e scris cuvântul, nu ce scrie. 16 itemi, 2,5 secunde fiecare. Dacă ai discromatopsie, sari peste acest test.", w: "urgențe, ATI, specialități acute" },
-  { k: "emp", n: "Judecată situațională", d: "5 situații cu oameni. Alege reacția pe care o consideri cea mai potrivită.", w: "psihiatrie, medicină de familie, pediatrie, oncologie" },
+  { k: "emp", n: "Judecată situațională", d: "7 dileme, la spital și în viața de zi cu zi. Nu există variantă evident greșită: contează ce alegi să faci primul.", w: "psihiatrie, medicină de familie, pediatrie, oncologie" },
 ];
 const APT_W = 0.15;
 // Cât cere fiecare specialitate din fiecare aptitudine (0–1), derivat din profilul ei
@@ -628,6 +632,7 @@ function aptAdjust(st) {
 // Cronometre ale testului curent; oprite la fiecare randare
 const T = { ids: [], timeout(f, ms) { const id = setTimeout(f, ms); this.ids.push(id); return id; }, clear() { this.ids.forEach(clearTimeout); this.ids = []; } };
 let APT_PHASE = "intro";
+let EMP_REVIEW = [];
 const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 const shuffle = arr => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -805,39 +810,63 @@ const TESTS = {
   },
 
   emp(area, done) {
+    // Toate variantele sunt plauzibile; scorurile reflectă prioritizarea, nu „binele” evident.
     const ITEMS = [
-      ["Un pacient îți spune furios că a așteptat trei ore și că nimănui nu-i pasă de el.", [
-        ["Recunosc că a așteptat mult, îmi cer scuze pentru așteptare și îi explic ce urmează acum.", 1],
-        ["Îi explic că sunt urgențe mai grave și că trebuie să aibă răbdare.", .4],
-        ["Îi spun că nu e vina mea și trec direct la examinare.", .1],
-        ["Chem paza ca să-l liniștească.", 0]]],
-      ["Observi că un coleg de gardă a calculat greșit o doză, înainte să fie administrată.", [
-        ["Îi spun discret pe loc, corectăm împreună și raportăm conform procedurii.", 1],
-        ["Corectez eu, fără să-i spun nimic.", .4],
-        ["Merg direct la medicul șef, fără să vorbesc întâi cu el.", .3],
-        ["Nu spun nimic, nu e pacientul meu.", 0]]],
-      ["Un prieten îți cere sfatul despre o decizie grea și începe să plângă.", [
-        ["Îl las să vorbească, îl întreb cum se simte și abia apoi discutăm variantele.", 1],
-        ["Îi spun imediat ce cred eu că ar trebui să facă.", .4],
-        ["Schimb subiectul ca să-l binedispun.", .1],
-        ["Îi spun că exagerează și că o să treacă.", 0]]],
-      ["Familia unui pacient vârstnic îți cere să nu-i spui că are cancer.", [
-        ["Le înțeleg teama, le explic dreptul pacientului de a ști și aflu ce își dorește pacientul.", 1],
-        ["Îi spun pacientului imediat, fără să mai discut cu familia.", .4],
-        ["Le respect cererea fără discuție.", .3],
-        ["Îi trimit la medicul curant și nu mă implic.", .1]]],
-      ["Ești în întârziere, iar un pacient vrea să-ți povestească pe larg despre familia lui.", [
-        ["Îl ascult un minut, recunosc ce contează pentru el și stabilim împreună ce discutăm azi.", 1],
-        ["Îl întrerup politicos și trec direct la simptome.", .5],
-        ["Îl las să vorbească oricât, chiar dacă ceilalți pacienți așteaptă.", .3],
-        ["Mă uit insistent la ceas ca să înțeleagă.", 0]]],
+      ["Un pacient cu diabet nu-și mai face insulina de două luni. Îți spune calm că a citit că îi face rău și vrea să încerce doar cu dietă.", [
+        ["Îl întreb ce anume a citit și ce îl îngrijorează, înainte să-i explic riscurile.", 1],
+        ["Îi explic clar, cu cifre, ce riscă dacă oprește insulina și îi cer să o reia de azi.", .5],
+        ["Accept două săptămâni de dietă, cu glicemii zilnice și control la final.", .3],
+        ["Îl trimit la un diabetolog pentru o a doua opinie.", .3]],
+        "Fără să afli de ce a oprit, orice explicație riscă să nu ajungă la el. Informația corectă vine imediat după, nu în locul întrebării."],
+      ["Ești singur de gardă. Asistenta îți spune că pacientul din salonul 3 „nu arată bine”, dar nu știe să spună exact ce are. În același timp sosește o internare nouă din UPU, stabilă.", [
+        ["Merg întâi la salonul 3 și văd pacientul cu ochii mei.", 1],
+        ["Cer la telefon funcțiile vitale ale pacientului din salonul 3 și apoi decid.", .7],
+        ["Preiau internarea și o rog pe asistentă să mă cheme dacă pacientul se agravează.", .2],
+        ["Îl rog pe medicul de gardă de la altă secție să treacă pe la salonul 3.", .3]],
+        "Îngrijorarea vagă a unei asistente cu experiență e un semnal clinic. Pacientul stabil poate aștepta câteva minute, deteriorarea neobservată nu poate. Funcțiile vitale la telefon sunt un compromis bun, dar pot fi normale la un pacient care se agravează."],
+      ["Un coleg rezident, prieten apropiat, a venit de două ori la tură mirosind a alcool. Nu a greșit nimic până acum.", [
+        ["Vorbesc cu el azi, îi cer să nu lucreze așa cu pacienți și îi spun că data viitoare anunț.", 1],
+        ["Îl anunț direct pe coordonatorul de rezidențiat, fără să vorbesc întâi cu el.", .6],
+        ["Îi sugerez discret să meargă la un psiholog, fără să implic pe nimeni.", .3],
+        ["Mai aștept, ca să nu-l acuz pe nedrept pe baza unui miros.", .1]],
+        "Siguranța pacienților e prioritară, dar o primă discuție directă e corectă și eficientă dacă stabilește o limită clară. Raportarea directă e defensabilă, doar că sare peste o etapă utilă. Așteptarea expune pacienții la risc."],
+      ["O pacientă de 30 de ani cere insistent antibiotic pentru o viroză respiratorie. Spune că doar asta o ajută și că altfel merge la alt medic.", [
+        ["O întreb ce speră să rezolve antibioticul și îi propun un plan pentru simptome, cu reevaluare dacă nu se ameliorează.", 1],
+        ["Îi dau o rețetă de rezervă, pe care să o folosească doar dacă după câteva zile e mai rău.", .7],
+        ["Îi explic rezistența la antibiotice și refuz ferm.", .4],
+        ["Îi prescriu ca să păstrez relația; o viroză nu merită o dispută.", .1]],
+        "Rețeta amânată e o strategie validată și reduce consumul de antibiotice, deci nu e o greșeală. Totuși, cel mai bun început e să afli ce așteaptă de fapt pacienta. Refuzul ferm e corect medical, dar o pierde adesea."],
+      ["Șeful de secție îți cere să externezi azi un pacient vârstnic, pentru că e nevoie de pat. Tu crezi că pacientul nu e pregătit, dar nu ai un argument clar, doar o impresie.", [
+        ["Reevaluez pacientul acum și îi spun șefului concret ce mă îngrijorează, chiar dacă e doar o impresie.", 1],
+        ["Îl externez, dar programez control la 48 de ore și explic familiei semnele de alarmă.", .6],
+        ["Refuz să semnez externarea până nu am un argument clar.", .3],
+        ["Îl externez; șeful are mai multă experiență decât mine.", .2]],
+        "O impresie clinică merită verificată și spusă cu voce tare, nu ascunsă sau transformată în blocaj. Externarea cu plasă de siguranță e rezonabilă dacă reevaluarea nu găsește nimic."],
+      ["Lucrezi la un proiect în echipă. Un coleg face mult mai puțin decât ceilalți, iar termenul e peste o săptămână.", [
+        ["Îl întreb ce îl blochează și reîmpărțim sarcinile, cu termene clare pentru fiecare.", 1],
+        ["Spun în grup, deschis, că avem nevoie ca toți să contribuie la fel.", .5],
+        ["Fac eu partea lui, ca să predăm la timp, și discut cu el după.", .4],
+        ["Îl anunț pe coordonator că un membru nu contribuie.", .3]],
+        "Problema reală poate fi alta decât lenea: neclaritate, o sarcină prea grea, probleme personale. Discuția directă rezolvă cauza, nu doar simptomul, și păstrează termenul."],
+      ["Un prieten îți cere părerea sinceră despre o afacere în care vrea să-și pună toate economiile. Tu crezi că e o idee proastă.", [
+        ["Îl întreb cum a ajuns la decizie și ce ar face dacă nu merge, ca să cântărească singur riscurile.", 1],
+        ["Îl sfătuiesc să investească doar o parte și să păstreze o rezervă.", .7],
+        ["Îi spun direct că mi se pare o idee proastă și de ce.", .6],
+        ["Îi spun că îl susțin; e decizia lui.", .2]],
+        "Ți-a cerut sinceritate, deci a-l susține necondiționat nu ajută. Întrebările bune îl fac să vadă singur riscurile, iar asta convinge mai des decât un verdict. Investiția parțială e un sfat practic foarte bun."],
     ];
     let i = 0, total = 0;
+    EMP_REVIEW = [];
     function item() {
       if (i >= ITEMS.length) return done(clamp(total / ITEMS.length));
-      const [q, opts] = ITEMS[i], sh = shuffle(opts);
-      area.innerHTML = `<p class="calc-q">${esc(q)}</p><div class="sjt">${sh.map((o, j) => `<button type="button" class="day" data-j="${j}"><p>${esc(o[0])}</p></button>`).join("")}</div><p class="mono muted">Situația ${i + 1} din ${ITEMS.length}</p>`;
-      area.querySelectorAll(".sjt button").forEach(b => b.addEventListener("click", () => { total += sh[+b.dataset.j][1]; i++; item(); }));
+      const [q, opts, why] = ITEMS[i], sh = shuffle(opts);
+      area.innerHTML = `<p class="calc-q">${esc(q)}</p><p class="muted">Toate variantele pot fi apărate. Alege ce ai face primul.</p><div class="sjt">${sh.map((o, j) => `<button type="button" class="day" data-j="${j}"><p>${esc(o[0])}</p></button>`).join("")}</div><p class="mono muted">Situația ${i + 1} din ${ITEMS.length}</p>`;
+      area.querySelectorAll(".sjt button").forEach(b => b.addEventListener("click", () => {
+        const o = sh[+b.dataset.j];
+        total += o[1];
+        EMP_REVIEW.push({ q, mine: o[0], sc: o[1], best: opts[0][0], why });
+        i++; item();
+      }));
     }
     item();
   },
@@ -847,7 +876,7 @@ function aptScreen() {
   const t = APTS[S.ti], sc = S.apt[S.ti];
   let body = "";
   if (APT_PHASE === "intro") body = `<p>${esc(t.d)}</p><p class="meta">Contează mai ales pentru: ${esc(t.w)}</p>`;
-  else if (APT_PHASE === "done") body = `<div class="aptdone"><span class="eyebrow">Scorul tău</span><b class="mono">${Math.round(sc * 100)}<small>/100</small></b><p class="muted">Contează mai ales pentru: ${esc(t.w)}</p></div>`;
+  else if (APT_PHASE === "done") body = `<div class="aptdone"><span class="eyebrow">Scorul tău</span><b class="mono">${Math.round(sc * 100)}<small>/100</small></b><p class="muted">Contează mai ales pentru: ${esc(t.w)}</p></div>${t.k === "emp" && EMP_REVIEW.length ? empReview() : ""}`;
   return `<section class="screen">
     ${treeTrail(S, "apt")}
     ${progressBar(`Nivelul 1b · Aptitudini · testul ${S.ti + 1} din ${APTS.length}`)}
@@ -861,6 +890,13 @@ function aptScreen() {
         : APT_PHASE === "done" ? `<span class="actions"><button class="btn" id="redoBtn" type="button">Refă testul</button><button class="btn primary" id="nextBtn" type="button">Mai departe →</button></span>` : `<span></span>`}
     </div>
   </section>`;
+}
+function empReview() {
+  return `<details class="review"><summary>Vezi cum ai răspuns și varianta recomandată</summary><ol>${EMP_REVIEW.map(r => `<li>
+    <p>${esc(r.q)}</p>
+    <p class="${r.sc >= 1 ? "rv-ok" : "rv-mine"}"><b>Tu:</b> ${esc(r.mine)}</p>
+    ${r.sc >= 1 ? "" : `<p class="rv-ok"><b>Recomandat:</b> ${esc(r.best)}</p>`}
+    <p class="muted">${esc(r.why)}</p></li>`).join("")}</ol></details>`;
 }
 function nextApt() {
   APT_PHASE = "intro";
